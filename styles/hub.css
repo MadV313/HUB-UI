@@ -1,83 +1,68 @@
-/* styles/index.css */
-
 body {
   margin: 0;
   padding: 0;
-  font-family: 'Arial Black', sans-serif;
+  font-family: 'Arial', sans-serif;
   background: url('../images/backgrounds/hub_bg.png') no-repeat center center fixed;
   background-size: cover;
-  color: #fff;
-  height: 100vh;
-  display: flex;
-  justify-content: center;
-  align-items: center;
+  overflow: hidden;
+  color: white;
+  text-align: center;
 }
 
 #background {
-  position: fixed;
-  top: 0;
-  left: 0;
+  position: absolute;
   width: 100%;
   height: 100%;
-  background: rgba(10, 10, 10, 0.6);
   z-index: -1;
+  filter: brightness(0.6);
 }
 
-.overlay {
-  text-align: center;
-  padding: 20px;
-  max-width: 500px;
-  width: 90%;
-  background: rgba(0, 0, 0, 0.4);
-  border-radius: 12px;
-}
-
-.title {
+#hub-title {
   font-size: 36px;
-  margin-bottom: 10px;
-  color: #f0f0f0;
-  text-shadow: 0 0 10px #000;
+  margin: 30px 0 20px;
+  text-shadow: 0 0 10px rgba(255,255,255,0.9);
 }
 
-.subtitle {
+.stat-bar {
   font-size: 16px;
-  margin-bottom: 25px;
-  line-height: 1.4;
+  margin-bottom: 20px;
   color: #ddd;
 }
 
-.button-group {
+.button-grid {
   display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin-bottom: 30px;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 25px;
+  padding: 30px;
 }
 
-.hub-btn {
-  text-decoration: none;
+.menu-button {
+  width: 180px;
+  height: 60px;
+  font-size: 18px;
+  font-weight: bold;
   color: white;
-  background: rgba(60, 60, 60, 0.9);
-  border: 2px solid #888;
-  padding: 12px;
-  border-radius: 6px;
-  font-size: 16px;
-  font-weight: bold;
-  transition: all 0.2s ease-in-out;
+  background-color: rgba(0,0,0,0.5);
+  border: 2px solid #ccc;
+  border-radius: 8px;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.3s ease, border-color 0.3s ease;
 }
 
-.hub-btn:hover {
-  background: #3cb371;
-  border-color: #3cb371;
-  color: #fff;
+.menu-button:hover {
+  border-color: #00ffff;
+  transform: scale(1.05);
+  box-shadow: 0 0 15px #00ffff;
 }
 
-.footer-stats {
-  font-size: 14px;
-  color: #ccc;
-  text-align: center;
+.menu-button.fade-out {
+  animation: fadeOut 1s ease forwards;
 }
 
-.footer-stats span {
-  font-weight: bold;
-  color: #fff;
+@keyframes fadeOut {
+  0% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(0.9); }
 }
