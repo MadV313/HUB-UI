@@ -2,39 +2,27 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>SV13 Duel Bot Hub</title>
-  <link rel="stylesheet" href="styles/hub.css" />
+  <title>SV13 Duel Hub</title>
+  <link rel="stylesheet" href="styles/index.css" />
 </head>
 <body>
-  <div id="hub-background"></div>
+  <div id="background"></div>
+  <div class="overlay">
+    <h1 class="title">SV13<br>DUEL BOT</h1>
+    <p class="subtitle">WELCOME BACK, SURVIVOR.<br>PREPARE YOUR DECK. DOMINATE THE ZONE.</p>
 
-  <div class="hub-overlay">
-    <h1 class="hub-title">SV13 DUEL BOT</h1>
-    <p class="hub-welcome">WELCOME BACK, SURVIVOR.<br />PREPARE YOUR DECK. DOMINATE THE ZONE.</p>
-
-    <div class="hub-buttons">
-      <button id="rulebookBtn">RULEBOOK & COMBOS</button>
-      <button id="collectionBtn">VIEW COLLECTION</button>
-      <button id="builderBtn">BUILD/EDIT DECK</button>
-      <button id="statsBtn">STATS A DUEL</button>
+    <div class="button-group">
+      <a href="https://your-username.github.io/Rulebook-UI/" class="hub-btn">Rulebook & Combos</a>
+      <a href="https://your-username.github.io/Card-Collection-UI/" class="hub-btn">View Collection</a>
+      <a href="https://your-username.github.io/Deck-Builder-UI/" class="hub-btn">Build/Edit Deck</a>
+      <a href="https://your-username.github.io/Duel-UI/" class="hub-btn">Start a Duel</a>
+      <a href="https://your-username.github.io/Duel-Summary-UI/" class="hub-btn">Stats & Leaderboard</a>
     </div>
 
-    <div class="hub-footer">
-      <span>ARSENAL UNLOCKED: <span id="cardCount">-- / 127</span></span>
-      <span>BANKED COINS: <span id="coinCount">--</span></span>
+    <div class="footer-stats">
+      <p>ARSENAL UNLOCKED: <span id="cardCount">83 / 127</span></p>
+      <p>BANKED COINS: <span id="coinCount">42</span></p>
     </div>
   </div>
-
-  <script type="module">
-    // Optional JS routing handlers
-    document.getElementById('rulebookBtn').onclick = () => window.location.href = 'rulebook.html';
-    document.getElementById('collectionBtn').onclick = () => window.location.href = 'collection.html';
-    document.getElementById('builderBtn').onclick = () => window.location.href = 'deckBuilder.html';
-    document.getElementById('statsBtn').onclick = () => window.location.href = 'stats.html';
-
-    // Dummy placeholders (replace with API fetch later)
-    document.getElementById('cardCount').textContent = '83 / 127';
-    document.getElementById('coinCount').textContent = '42';
-  </script>
 </body>
 </html>
