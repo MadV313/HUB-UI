@@ -1,72 +1,83 @@
-/* styles/hub.css */
+/* styles/index.css */
 
 body {
   margin: 0;
   padding: 0;
-  font-family: 'Arial', sans-serif;
+  font-family: 'Arial Black', sans-serif;
+  background: url('../images/backgrounds/hub_bg.png') no-repeat center center fixed;
+  background-size: cover;
   color: #fff;
-  background: #000;
-  overflow: hidden;
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
-#hub-background {
-  position: absolute;
+#background {
+  position: fixed;
+  top: 0;
+  left: 0;
   width: 100%;
   height: 100%;
-  background: url('../images/backgrounds/sv13_hub_bg.png') no-repeat center center fixed;
-  background-size: cover;
-  filter: brightness(0.6);
+  background: rgba(10, 10, 10, 0.6);
   z-index: -1;
 }
 
-.hub-overlay {
-  position: relative;
-  width: 100%;
-  max-width: 480px;
-  margin: 0 auto;
+.overlay {
   text-align: center;
-  padding: 60px 20px 30px;
+  padding: 20px;
+  max-width: 500px;
+  width: 90%;
+  background: rgba(0, 0, 0, 0.4);
+  border-radius: 12px;
 }
 
-.hub-title {
-  font-size: 38px;
-  font-weight: bold;
-  margin-bottom: 20px;
-  letter-spacing: 2px;
+.title {
+  font-size: 36px;
+  margin-bottom: 10px;
+  color: #f0f0f0;
+  text-shadow: 0 0 10px #000;
 }
 
-.hub-welcome {
+.subtitle {
   font-size: 16px;
-  line-height: 1.5;
-  text-transform: uppercase;
-  margin-bottom: 40px;
-}
-
-.hub-buttons button {
-  display: block;
-  width: 100%;
-  padding: 12px;
-  margin: 12px 0;
-  font-size: 16px;
-  background: rgba(0,0,0,0.7);
-  color: #fff;
-  border: 2px solid #ccc;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: background 0.3s, transform 0.2s;
-}
-
-.hub-buttons button:hover {
-  background: rgba(255,255,255,0.15);
-  transform: scale(1.02);
-}
-
-.hub-footer {
-  margin-top: 40px;
-  font-size: 14px;
-  display: flex;
-  justify-content: space-between;
-  padding: 0 10px;
+  margin-bottom: 25px;
+  line-height: 1.4;
   color: #ddd;
-  text-shadow: 0 0 3px #000;
+}
+
+.button-group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 30px;
+}
+
+.hub-btn {
+  text-decoration: none;
+  color: white;
+  background: rgba(60, 60, 60, 0.9);
+  border: 2px solid #888;
+  padding: 12px;
+  border-radius: 6px;
+  font-size: 16px;
+  font-weight: bold;
+  transition: all 0.2s ease-in-out;
+}
+
+.hub-btn:hover {
+  background: #3cb371;
+  border-color: #3cb371;
+  color: #fff;
+}
+
+.footer-stats {
+  font-size: 14px;
+  color: #ccc;
+  text-align: center;
+}
+
+.footer-stats span {
+  font-weight: bold;
+  color: #fff;
 }
