@@ -2,31 +2,39 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>DayZ CCG - Hub</title>
+  <title>SV13 Duel Bot Hub</title>
   <link rel="stylesheet" href="styles/hub.css" />
 </head>
 <body>
-  <div id="background"></div>
+  <div id="hub-background"></div>
 
-  <div class="hub-container">
-    <h1 class="hub-title">DayZ CCG</h1>
-    <p class="subtitle">Choose your path, survivor.</p>
-
-    <div class="info">
-      <p id="card-count">Cards: 83 / 127</p>
-      <p id="coin-balance">Coins: 12</p>
-    </div>
+  <div class="hub-overlay">
+    <h1 class="hub-title">SV13 DUEL BOT</h1>
+    <p class="hub-welcome">WELCOME BACK, SURVIVOR.<br />PREPARE YOUR DECK. DOMINATE THE ZONE.</p>
 
     <div class="hub-buttons">
-      <a href="rulebook.html" class="hub-button">Rulebook</a>
-      <a href="cardCollection.html" class="hub-button">Card Collection</a>
-      <a href="deckBuilder.html" class="hub-button">Deck Builder</a>
-      <a href="duel.html" class="hub-button">Duel</a>
-      <a href="stats.html" class="hub-button">Stats & Leaderboard</a>
+      <button id="rulebookBtn">RULEBOOK & COMBOS</button>
+      <button id="collectionBtn">VIEW COLLECTION</button>
+      <button id="builderBtn">BUILD/EDIT DECK</button>
+      <button id="statsBtn">STATS A DUEL</button>
     </div>
 
-    <p class="footer">Welcome back, Agent.</p>
+    <div class="hub-footer">
+      <span>ARSENAL UNLOCKED: <span id="cardCount">-- / 127</span></span>
+      <span>BANKED COINS: <span id="coinCount">--</span></span>
+    </div>
   </div>
+
+  <script type="module">
+    // Optional JS routing handlers
+    document.getElementById('rulebookBtn').onclick = () => window.location.href = 'rulebook.html';
+    document.getElementById('collectionBtn').onclick = () => window.location.href = 'collection.html';
+    document.getElementById('builderBtn').onclick = () => window.location.href = 'deckBuilder.html';
+    document.getElementById('statsBtn').onclick = () => window.location.href = 'stats.html';
+
+    // Dummy placeholders (replace with API fetch later)
+    document.getElementById('cardCount').textContent = '83 / 127';
+    document.getElementById('coinCount').textContent = '42';
+  </script>
 </body>
 </html>
