@@ -6,8 +6,11 @@ html, body {
   overflow: hidden;
   font-family: 'Arial', sans-serif;
   background: url('../images/backgrounds/hub_background.png') no-repeat center center fixed;
-  background-size: 100% 100%;
+  background-size: cover;
   background-color: #000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
 #background {
@@ -15,14 +18,15 @@ html, body {
 }
 
 .overlay {
-  height: 100%;
   width: 100%;
   max-width: 480px;
   padding: 0 12px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-end;
+  height: 100%;
+  padding-bottom: 80px; /* Lower the stack */
 }
 
 #hub-title,
