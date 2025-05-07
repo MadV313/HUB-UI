@@ -1,14 +1,18 @@
-html, body {
+body {
   margin: 0;
   padding: 0;
-  height: 100%;
-  overflow: hidden;
   font-family: 'Arial', sans-serif;
-  background: url('../images/backgrounds/hub_background.png') no-repeat center center fixed;
-  background-size: 100% 100%;
+  background: url('/images/backgrounds/hub_background.PNG') no-repeat center center fixed;
+  background-size: cover;
   background-color: #000;
+  overflow: hidden;
   color: white;
   text-align: center;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
 }
 
 #background {
@@ -19,52 +23,54 @@ html, body {
   filter: brightness(0.6);
 }
 
-#hub-title,
-.subtitle,
-.stat-bar {
-  display: none;
-}
-
 .overlay {
-  position: relative;
   width: 100%;
-  height: 100%;
-  overflow: hidden;
+  max-width: 480px;
+  padding: 0 10px;
 }
 
-/* Adjusted button layout */
+#hub-title {
+  font-size: 36px;
+  margin: 20px 0 10px;
+  text-shadow: 0 0 10px rgba(255,255,255,0.9);
+}
+
+.subtitle {
+  font-size: 16px;
+  font-weight: bold;
+  margin-bottom: 20px;
+}
+
 .button-grid {
-  position: absolute;
-  top: 56%; /* slightly higher */
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 1;
-  width: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
+  gap: 15px;
+  margin-top: 10px;
 }
 
-/* Bigger, wider buttons */
 .menu-button {
-  width: 95%;
-  max-width: 400px;
-  height: 72px;
-  font-size: 22px;
+  width: 100%;
+  height: 60px;
+  font-size: 18px;
   font-weight: bold;
   color: white;
-  background-color: rgba(0, 0, 0, 0.5);
+  background-color: rgba(0,0,0,0.5);
   border: 2px solid #ccc;
-  border-radius: 6px;
+  border-radius: 8px;
   cursor: pointer;
-  transition: transform 0.2s ease;
-  margin-bottom: 18px;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.3s ease, border-color 0.3s ease;
+  text-decoration: none;
 }
 
 .menu-button:hover {
-  transform: scale(1.03);
   border-color: #00ffff;
-  box-shadow: 0 0 12px #00ffff;
+  transform: scale(1.02);
+  box-shadow: 0 0 10px #00ffff;
 }
 
 .menu-button.fade-out {
@@ -74,4 +80,9 @@ html, body {
 @keyframes fadeOut {
   0% { opacity: 1; transform: scale(1); }
   100% { opacity: 0; transform: scale(0.9); }
+}
+
+/* Hide footer info completely */
+.stat-bar {
+  display: none;
 }
