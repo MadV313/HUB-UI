@@ -24,15 +24,13 @@ html, body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center; /* changed from flex-end to center */
+  justify-content: center;
   height: 100%;
-  padding-bottom: 0;
 }
 
-#hub-title,
-.subtitle,
-.stat-bar {
-  display: none;
+.button-wrapper {
+  margin-top: 60px; /* push buttons downward; adjust as needed */
+  width: 100%;
 }
 
 .button-grid {
@@ -40,7 +38,6 @@ html, body {
   flex-direction: column;
   gap: 18px;
   width: 100%;
-  margin-top: -45px; /* Adjusts entire block upward by ~3 button heights */
 }
 
 .menu-button {
@@ -64,4 +61,10 @@ html, body {
   border-color: #00ffff;
   transform: scale(1.02);
   box-shadow: 0 0 10px #00ffff;
+}
+
+#hub-title,
+.subtitle,
+.stat-bar {
+  display: none;
 }
