@@ -26,7 +26,7 @@ html, body {
   align-items: center;
   justify-content: flex-end;
   height: 100%;
-  padding-bottom: 40px; /* Lower value to move buttons UP */
+  padding-bottom: 40px;
 }
 
 #hub-title,
@@ -40,6 +40,7 @@ html, body {
   flex-direction: column;
   gap: 18px;
   width: 100%;
+  margin-top: -210px; /* Shift upward by 3 button heights */
 }
 
 .menu-button {
