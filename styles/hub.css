@@ -40,7 +40,7 @@ html, body {
   flex-direction: column;
   gap: 18px;
   width: 100%;
-  margin-top: -105px; /* Adjusts entire block upward by ~3 button heights */
+  margin-top: -45px; /* Adjusts entire block upward by ~3 button heights */
 }
 
 .menu-button {
