@@ -1,3 +1,36 @@
+body {
+  margin: 0;
+  padding: 0;
+  font-family: 'Arial', sans-serif;
+  background: url('../images/backgrounds/hub_background.PNG') no-repeat center center fixed;
+  background-size: cover;
+  background-color: #000;
+  overflow: hidden;
+  color: white;
+  text-align: center;
+}
+
+#background {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  z-index: -1;
+  filter: brightness(0.6);
+}
+
+/* Hide duplicate title/subtitle text baked into the image */
+#hub-title,
+.subtitle {
+  display: none;
+}
+
+.overlay {
+  position: relative;
+  width: 100%;
+  height: 100vh;
+}
+
+/* Container for all menu buttons, positioned over image */
 .button-grid {
   position: absolute;
   top: 60%;
@@ -10,19 +43,19 @@
   align-items: center;
 }
 
-/* Shared styling for all buttons */
+/* Shared button appearance */
 .menu-button {
   width: 290px;
   height: 52px;
   font-size: 18px;
   font-weight: bold;
   color: white;
-  background-color: rgba(0,0,0,0.5);
+  background-color: rgba(0, 0, 0, 0.5);
   border: 2px solid #ccc;
   border-radius: 6px;
   cursor: pointer;
   transition: transform 0.2s ease;
-  margin-bottom: 16px; /* default spacing */
+  margin-bottom: 16px; /* fallback spacing */
 }
 
 .menu-button:hover {
@@ -31,7 +64,16 @@
   box-shadow: 0 0 12px #00ffff;
 }
 
-/* Fine-tuned offsets (adjust as needed for perfect stacking) */
+.menu-button.fade-out {
+  animation: fadeOut 1s ease forwards;
+}
+
+@keyframes fadeOut {
+  0% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(0.9); }
+}
+
+/* Fine-tuned offsets for alignment */
 .button-grid a:nth-child(1) {
   margin-top: -160px;
 }
@@ -46,4 +88,14 @@
 }
 .button-grid a:nth-child(5) {
   margin-top: 6px;
+}
+
+/* Stats aligned at the bottom */
+.stat-bar {
+  position: absolute;
+  bottom: 40px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 16px;
+  color: #f2f2f2;
 }
