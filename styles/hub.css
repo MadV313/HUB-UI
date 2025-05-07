@@ -1,15 +1,17 @@
-body {
+html, body {
   margin: 0;
   padding: 0;
   font-family: 'Arial', sans-serif;
-  background: url('../images/backgrounds/hub_background.png') no-repeat center center fixed;
+  height: 100%;
+  width: 100%;
+  background: url('images/backgrounds/hub_background.png') no-repeat center center fixed;
   background-size: cover;
-  background-color: #000;
   overflow: hidden;
-  height: 100vh;
-  display: flex;
-  justify-content: center;
-  align-items: center;
+  color: white;
+}
+
+#background {
+  display: none;
 }
 
 .overlay {
@@ -21,8 +23,12 @@ body {
   align-items: center;
 }
 
+#hub-title {
+  display: none; /* Hide extra title text over image */
+}
+
 .subtitle {
-  display: none; /* Removed duplicate header text */
+  display: none; /* Hide subtitle as it's part of the image */
 }
 
 .button-grid {
@@ -30,7 +36,7 @@ body {
   flex-direction: column;
   gap: 16px;
   width: 100%;
-  margin-top: 20px;
+  margin-top: 40px;
 }
 
 .menu-button {
@@ -39,7 +45,7 @@ body {
   font-size: 18px;
   font-weight: bold;
   color: white;
-  background-color: rgba(0,0,0,0.5);
+  background-color: rgba(0, 0, 0, 0.5);
   border: 2px solid #ccc;
   border-radius: 8px;
   text-align: center;
@@ -57,5 +63,5 @@ body {
 }
 
 .stat-bar {
-  display: none;
+  display: none; /* Hidden to let image text show instead */
 }
