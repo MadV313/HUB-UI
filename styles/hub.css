@@ -1,13 +1,13 @@
 html, body {
   margin: 0;
   padding: 0;
-  font-family: 'Arial', sans-serif;
   height: 100%;
   width: 100%;
-  background: url('images/backgrounds/hub_background.png') no-repeat center center fixed;
-  background-size: cover;
   overflow: hidden;
-  color: white;
+  font-family: 'Arial', sans-serif;
+  background: url('../images/backgrounds/hub_background.png') no-repeat center center fixed;
+  background-size: 100% 100%;
+  background-color: #000;
 }
 
 #background {
@@ -15,33 +15,32 @@ html, body {
 }
 
 .overlay {
+  height: 100%;
   width: 100%;
   max-width: 480px;
   padding: 0 12px;
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
 }
 
-#hub-title {
-  display: none; /* Hide extra title text over image */
-}
-
-.subtitle {
-  display: none; /* Hide subtitle as it's part of the image */
+#hub-title,
+.subtitle,
+.stat-bar {
+  display: none;
 }
 
 .button-grid {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 18px;
   width: 100%;
-  margin-top: 40px;
 }
 
 .menu-button {
   width: 100%;
-  height: 64px;
+  height: 70px;
   font-size: 18px;
   font-weight: bold;
   color: white;
@@ -60,8 +59,4 @@ html, body {
   border-color: #00ffff;
   transform: scale(1.02);
   box-shadow: 0 0 10px #00ffff;
-}
-
-.stat-bar {
-  display: none; /* Hidden to let image text show instead */
 }
