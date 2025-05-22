@@ -93,7 +93,7 @@ html, body {
 /* 🔢 Stat labels (bottom left) */
 .stat-overlay {
   position: fixed;
-  bottom: 20px;
+  bottom: 60px; /* lifted slightly for mobile */
   left: 20px;
   color: #fff;
   font-size: 2.4em;
@@ -105,7 +105,7 @@ html, body {
 /* 🔢 Stat values (bottom right) */
 .stat-values {
   position: fixed;
-  bottom: 20px;
+  bottom: 60px; /* lifted slightly for mobile */
   right: 20px;
   color: #fff;
   font-size: 2.4em;
@@ -138,9 +138,15 @@ html, body {
     height: 60px;
     font-size: 16px;
   }
+
+  .stat-overlay,
+  .stat-values {
+    bottom: 30px;
+    font-size: 2.2em;
+  }
 }
 
-/* ✅ Mobile adjustments: fix button area and float stats above */
+/* ✅ Mobile adjustments */
 @media (max-width: 767px) {
   html, body {
     overflow: hidden;
@@ -166,6 +172,7 @@ html, body {
 
   .stat-overlay,
   .stat-values {
-    font-size: 2.4em;
+    bottom: 120px; /* pushed upward further to fully overlap bg text */
+    font-size: 2.6em;
   }
 }
