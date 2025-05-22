@@ -87,3 +87,26 @@ html, body {
   position: relative;
   z-index: 1;
 }
+
+/* 📺 PC-Only Viewport Adjustments */
+@media (min-width: 768px) {
+  body {
+    align-items: center;              /* Center vertically on desktop */
+    background-size: contain;         /* Prevent stretched background */
+    overflow-y: scroll;               /* Allow scroll if content grows */
+  }
+
+  .button-wrapper {
+    margin-top: 500px;                /* Less spacing needed on large screens */
+  }
+
+  .menu-button {
+    height: 80px;
+    font-size: 20px;
+  }
+
+  .overlay {
+    max-width: 600px;                 /* Slightly wider for desktop */
+    padding: 0 24px;
+  }
+}
