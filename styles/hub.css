@@ -141,9 +141,15 @@ html, body {
     font-size: 16px;
   }
 
-  .stat-overlay,
+  .stat-overlay {
+    bottom: 30px;
+    left: 100px; /* 👈 Closer to center */
+    font-size: 2.2em;
+  }
+
   .stat-values {
     bottom: 30px;
+    right: 100px; /* 👈 Closer to center */
     font-size: 2.2em;
   }
 }
