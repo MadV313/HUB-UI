@@ -8,10 +8,10 @@ html, body {
   background-size: cover;
   background-color: #000;
   overflow-x: hidden;
-  overflow-y: auto; /* ✅ FIXED: allow scroll on PC */
+  overflow-y: auto; /* ✅ PC scroll allowed */
   display: flex;
   justify-content: center;
-  align-items: flex-start; /* ✅ ALIGN: top instead of center to prevent cut-off */
+  align-items: flex-start;
 }
 
 #background {
@@ -27,6 +27,8 @@ html, body {
   align-items: center;
   justify-content: flex-start;
   min-height: 100vh;
+  position: relative;
+  z-index: 1;
 }
 
 .button-wrapper {
@@ -77,21 +79,15 @@ html, body {
   width: 100%;
   height: 100%;
   background: url('../images/effects/snowfall.gif') center center / cover no-repeat;
-  opacity: 0.35; /* adjust this for subtlety */
+  opacity: 0.35;
   z-index: 0;
   pointer-events: none;
 }
 
-/* Ensure overlay and content stay above snow */
-.overlay {
-  position: relative;
-  z-index: 1;
-}
-
-/* ✅ PC-only adjustments (centered background, fixed sizing) */
+/* ✅ PC-only adjustments */
 @media (min-width: 1024px) {
   html, body {
-    background-size: 100% 100%;         /* ✅ Stretch to fill full area */
+    background-size: 100% 100%;
     background-position: center center;
     background-repeat: no-repeat;
     background-attachment: fixed;
@@ -111,5 +107,29 @@ html, body {
   .menu-button {
     height: 60px;
     font-size: 16px;
+  }
+}
+
+/* ✅ Mobile-only: prevent scroll and fix button position */
+@media (max-width: 767px) {
+  html, body {
+    overflow: hidden;
+    height: 100vh;
+  }
+
+  .button-wrapper {
+    position: fixed;
+    bottom: 40px;
+    left: 0;
+    right: 0;
+    margin: 0 auto;
+    padding: 0 12px;
+    width: 100%;
+    max-width: 480px;
+    z-index: 5;
+  }
+
+  .button-grid {
+    gap: 14px;
   }
 }
