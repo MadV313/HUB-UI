@@ -4,7 +4,7 @@ html, body {
   height: 100%;
   width: 100%;
   font-family: 'Arial', sans-serif;
-  background: url('../images/backgrounds/hub_background.png') no-repeat center center fixed;
+  background: url('../images/backgrounds/hub_background.PNG') no-repeat center center fixed;
   background-size: cover;
   background-color: #000;
   overflow-x: hidden;
