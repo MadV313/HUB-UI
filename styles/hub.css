@@ -196,7 +196,7 @@ html, body {
 /* 🔗 Discord Button (top-right) */
 .discord-button {
   position: fixed;
-  top: 20px;
+  top: 40px;
   right: 40px;
   z-index: 10;
   width: 96px;
