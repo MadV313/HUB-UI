@@ -148,12 +148,21 @@ html, body {
   }
 }
 
-/* ✅ Mobile adjustments */
+/* ✅ Mobile adjustments — fully prevent scroll */
 @media (max-width: 767px) {
   html, body {
+    height: 100dvh;
     overflow: hidden;
-    height: 100vh;
-    position: relative;
+    overscroll-behavior: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+  }
+
+  .overlay {
+    overflow: hidden;
+    height: 100dvh;
   }
 
   .button-wrapper {
