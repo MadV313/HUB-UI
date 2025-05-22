@@ -91,9 +91,10 @@ html, body {
 /* ✅ PC-only adjustments (centered background, fixed sizing) */
 @media (min-width: 1024px) {
   html, body {
-    background-size: 130%;            /* Enlarged background without full zoom */
-    background-position: center top;  /* Anchor the image for scroll alignment */
+    background-size: cover;               /* ✅ Force full-screen fill on PC */
+    background-position: center center;
     background-repeat: no-repeat;
+    background-attachment: fixed;
     align-items: flex-start;
     overflow-y: scroll;
   }
@@ -104,11 +105,12 @@ html, body {
   }
 
   .button-wrapper {
-    margin-top: 700px;               /* Adjust spacing so buttons show later */
+    margin-top: 700px;
   }
 
   .menu-button {
-    height: 60px;                    /* Smaller buttons for PC */
+    height: 60px;
     font-size: 16px;
   }
 }
+
