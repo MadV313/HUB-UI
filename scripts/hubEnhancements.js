@@ -10,8 +10,11 @@ document.addEventListener('DOMContentLoaded', () => {
       const stats = data[userId];
       if (!stats) return;
 
-      document.getElementById('cardCount')!.textContent = `Cards: ${stats.cards}/127`;
-      document.getElementById('coinCount')!.textContent = `Coins: ${stats.coins}`;
+      const arsenal = document.getElementById('arsenalCount');
+      const coins = document.getElementById('coinCount');
+
+      if (arsenal) arsenal.textContent = `${stats.cards} / 127`;
+      if (coins) coins.textContent = `${stats.coins}`;
     });
 
   const buttons = document.querySelectorAll('.menu-button');
