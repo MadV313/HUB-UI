@@ -192,3 +192,26 @@ html, body {
     font-size: 10em;
   }
 }
+
+/* 🔗 Discord Button (top-right) */
+.discord-button {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 10;
+  width: 48px;
+  height: 48px;
+  opacity: 0.85;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.discord-button:hover {
+  opacity: 1;
+  transform: scale(1.1);
+}
+
+.discord-button img {
+  width: 100%;
+  height: auto;
+  display: block;
+}
