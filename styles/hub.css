@@ -88,25 +88,21 @@ html, body {
   z-index: 1;
 }
 
-/* 📺 PC-Only Viewport Adjustments */
-@media (min-width: 768px) {
-  body {
-    align-items: center;              /* Center vertically on desktop */
-    background-size: contain;         /* Prevent stretched background */
-    overflow-y: scroll;               /* Allow scroll if content grows */
-  }
-
-  .button-wrapper {
-    margin-top: 500px;                /* Less spacing needed on large screens */
-  }
-
-  .menu-button {
-    height: 80px;
-    font-size: 20px;
+/* ✅ PC-only refinement WITHOUT affecting mobile */
+@media (min-width: 1024px) {
+  html, body {
+    background-position: right center;       /* Shift image more to the right */
+    background-size: 1400px auto;            /* Lock max image width to 1400px */
+    align-items: flex-start;                 /* Prevent vertical centering shift */
+    overflow-y: scroll;
   }
 
   .overlay {
-    max-width: 600px;                 /* Slightly wider for desktop */
-    padding: 0 24px;
+    max-width: 540px;
+    padding: 0 16px;
+  }
+
+  .button-wrapper {
+    margin-top: 800px;
   }
 }
