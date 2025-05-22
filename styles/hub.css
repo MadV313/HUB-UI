@@ -8,7 +8,7 @@ html, body {
   background-size: cover;
   background-color: #000;
   overflow-x: hidden;
-  overflow-y: auto; /* ✅ PC scroll allowed */
+  overflow-y: auto;
   display: flex;
   justify-content: center;
   align-items: flex-start;
@@ -84,14 +84,19 @@ html, body {
   pointer-events: none;
 }
 
-/* ✅ PC-only adjustments */
+/* Overlay stays above snow */
+.overlay {
+  position: relative;
+  z-index: 1;
+}
+
+/* ✅ PC adjustments */
 @media (min-width: 1024px) {
   html, body {
-    background-size: 100% 100%;
+    background-size: contain;
     background-position: center center;
     background-repeat: no-repeat;
     background-attachment: fixed;
-    align-items: flex-start;
     overflow-y: scroll;
   }
 
@@ -101,14 +106,7 @@ html, body {
   }
 
   .button-wrapper {
-    position: fixed;
-    top: 700px;
-    left: 0;
-    right: 0;
-    margin: 0 auto;
-    padding: 0 16px;
-    max-width: 520px;
-    z-index: 2;
+    margin-top: 640px;
   }
 
   .menu-button {
@@ -117,11 +115,12 @@ html, body {
   }
 }
 
-/* ✅ Mobile-only: prevent scroll and fix button position */
+/* ✅ Mobile adjustments: fix button area */
 @media (max-width: 767px) {
   html, body {
     overflow: hidden;
     height: 100vh;
+    position: relative;
   }
 
   .button-wrapper {
