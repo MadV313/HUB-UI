@@ -153,7 +153,7 @@ html, body {
   }
 
   .discord-button {
-    right: 30px; /* ✅ Moved inward for PC */
+    right: 40px; /* ✅ Moved inward for PC */
   }
 }
 
