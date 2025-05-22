@@ -88,12 +88,13 @@ html, body {
   z-index: 1;
 }
 
-/* ✅ PC-only refinement WITHOUT affecting mobile */
+/* ✅ PC-only adjustments (centered background, fixed sizing) */
 @media (min-width: 1024px) {
   html, body {
-    background-position: right center;       /* Shift image more to the right */
-    background-size: 1400px auto;            /* Lock max image width to 1400px */
-    align-items: flex-start;                 /* Prevent vertical centering shift */
+    background-size: contain;        /* Show full background image without zoom/stretch */
+    background-repeat: no-repeat;
+    background-position: center center;
+    align-items: flex-start;         /* Prevent vertical shift */
     overflow-y: scroll;
   }
 
@@ -103,6 +104,12 @@ html, body {
   }
 
   .button-wrapper {
-    margin-top: 800px;
+    margin-top: 800px;               /* PC margin for button position */
+  }
+
+  .menu-button {
+    height: 80px;
+    font-size: 20px;
   }
 }
+
