@@ -101,7 +101,14 @@ html, body {
   }
 
   .button-wrapper {
-    margin-top: 700px;
+    position: fixed;
+    top: 700px;
+    left: 0;
+    right: 0;
+    margin: 0 auto;
+    padding: 0 16px;
+    max-width: 520px;
+    z-index: 2;
   }
 
   .menu-button {
