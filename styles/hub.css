@@ -90,21 +90,29 @@ html, body {
   z-index: 1;
 }
 
-/* 🎯 Overlay stats (PC + mobile shared base) */
-.stats-display {
-  position: absolute;
-  bottom: 30px;
-  right: 12px;
-  color: #f0f0f0;
-  font-size: 16px;
+/* 🔢 Stat labels (bottom left) */
+.stat-overlay {
+  position: fixed;
+  bottom: 20px;
+  left: 20px;
+  color: #fff;
+  font-size: 2.4em;
   font-weight: bold;
-  text-align: right;
   z-index: 2;
-  text-shadow: 1px 1px 3px #000;
+  text-shadow: 1px 1px 4px #000;
 }
 
-.stat-line {
-  margin-bottom: 6px;
+/* 🔢 Stat values (bottom right) */
+.stat-values {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  color: #fff;
+  font-size: 2.4em;
+  font-weight: bold;
+  z-index: 2;
+  text-align: right;
+  text-shadow: 1px 1px 4px #000;
 }
 
 /* ✅ PC adjustments */
@@ -128,11 +136,6 @@ html, body {
 
   .menu-button {
     height: 60px;
-    font-size: 16px;
-  }
-
-  .stats-display {
-    bottom: 40px;
     font-size: 16px;
   }
 }
@@ -161,10 +164,8 @@ html, body {
     gap: 14px;
   }
 
-  .stats-display {
-    position: fixed;
-    bottom: 120px;
-    right: 16px;
-    font-size: 14px;
+  .stat-overlay,
+  .stat-values {
+    font-size: 2.4em;
   }
 }
