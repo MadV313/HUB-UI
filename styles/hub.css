@@ -90,6 +90,23 @@ html, body {
   z-index: 1;
 }
 
+/* 🎯 Overlay stats (PC + mobile shared base) */
+.stats-display {
+  position: absolute;
+  bottom: 30px;
+  right: 12px;
+  color: #f0f0f0;
+  font-size: 16px;
+  font-weight: bold;
+  text-align: right;
+  z-index: 2;
+  text-shadow: 1px 1px 3px #000;
+}
+
+.stat-line {
+  margin-bottom: 6px;
+}
+
 /* ✅ PC adjustments */
 @media (min-width: 1024px) {
   html, body {
@@ -113,9 +130,14 @@ html, body {
     height: 60px;
     font-size: 16px;
   }
+
+  .stats-display {
+    bottom: 40px;
+    font-size: 16px;
+  }
 }
 
-/* ✅ Mobile adjustments: fix button area */
+/* ✅ Mobile adjustments: fix button area and float stats above */
 @media (max-width: 767px) {
   html, body {
     overflow: hidden;
@@ -137,5 +159,12 @@ html, body {
 
   .button-grid {
     gap: 14px;
+  }
+
+  .stats-display {
+    position: fixed;
+    bottom: 120px;
+    right: 16px;
+    font-size: 14px;
   }
 }
