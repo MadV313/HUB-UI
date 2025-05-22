@@ -173,6 +173,6 @@ html, body {
   .stat-overlay,
   .stat-values {
     bottom: 120px; /* pushed upward further to fully overlap bg text */
-    font-size: 2.6em;
+    font-size: 5em;
   }
 }
