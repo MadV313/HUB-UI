@@ -91,25 +91,24 @@ html, body {
 /* ✅ PC-only adjustments (centered background, fixed sizing) */
 @media (min-width: 1024px) {
   html, body {
-    background-size: contain;        /* Show full background image without zoom/stretch */
+    background-size: 130%;            /* Enlarged background without full zoom */
+    background-position: center top;  /* Anchor the image for scroll alignment */
     background-repeat: no-repeat;
-    background-position: center center;
-    align-items: flex-start;         /* Prevent vertical shift */
+    align-items: flex-start;
     overflow-y: scroll;
   }
 
   .overlay {
-    max-width: 540px;
+    max-width: 520px;
     padding: 0 16px;
   }
 
   .button-wrapper {
-    margin-top: 800px;               /* PC margin for button position */
+    margin-top: 700px;               /* Adjust spacing so buttons show later */
   }
 
   .menu-button {
-    height: 80px;
-    font-size: 20px;
+    height: 60px;                    /* Smaller buttons for PC */
+    font-size: 16px;
   }
 }
-
