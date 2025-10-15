@@ -1,48 +1,80 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <title>SV13 Duel Hub</title>
-  <link rel="stylesheet" href="styles/hub.css" />
-</head>
-<body>
-  <!-- ❄️ Snowfall Effect -->
-  <div class="snow-effect"></div>
+document.addEventListener('DOMContentLoaded', () => {
+  const statsUrl = `data/player_stats.json`;
+  const userId = new URLSearchParams(window.location.search).get('user');
 
-  <div id="background"></div>
+  if (!userId) return;
 
-  <!-- 🔗 Discord Logo Button -->
-  <a class="discord-button" href="https://discord.com/channels/1166441420643639348" target="_blank" rel="noopener">
-    <img src="images/logos/discord_logo.PNG" alt="Discord" />
-  </a>
+  fetch(statsUrl)
+    .then(res => res.json())
+    .then(data => {
+      const stats = data[userId];
+      if (!stats) return;
 
-  <div class="overlay">
-    <h1 id="hub-title">SV13<br>DUEL BOT</h1>
-    <p class="subtitle">WELCOME BACK, SURVIVOR.<br>PREPARE YOUR DECK. DOMINATE THE ZONE.</p>
+      const arsenal = document.getElementById('arsenalCount');
+      const coins = document.getElementById('coinCount');
 
-    <div class="button-wrapper">
-      <div class="button-grid">
-        <a href="https://madv313.github.io/Duel-Bot/SV13_RuleBook.html" class="menu-button">Rulebook</a>
-        <a href="https://madv313.github.io/Card-Collection-UI/" class="menu-button">View Collection</a>
-        <a href="https://madv313.github.io/Deck-Builder-UI/" class="menu-button">Build/Edit Deck</a>
-        <a href="https://madv313.github.io/Duel-UI/" class="menu-button">Start a Duel</a>
-        <a href="https://madv313.github.io/Leaderboard-UI/" class="menu-button">Leaderboard</a>
-      </div>
-    </div>
-  </div>
+      if (arsenal) arsenal.textContent = `${stats.cards} / 127`;
+      if (coins) coins.textContent = `${stats.coins}`;
+    });
 
-  <!-- 🧩 Stat Labels (Bottom Left) -->
-  <div class="stat-overlay">
-    <div class="stat-line">ARSENAL UNLOCKED:</div>
-    <div class="stat-line">BANKED COINS:</div>
-  </div>
+  const buttons = document.querySelectorAll('.menu-button');
+  buttons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      btn.classList.add('fade-out');
+    });
+  });
+});
 
-  <!-- 🔢 Stat Values (Bottom Right) -->
-  <div class="stat-values">
-    <div class="stat-line"><span id="arsenalCount">30 / 127</span></div>
-    <div class="stat-line"><span id="coinCount">13</span></div>
-  </div>
+// ───────────────────────────
+// 🎵 Background music control
+// ───────────────────────────
+(function setupHubMusic() {
+  const audio = document.getElementById('hub-bgm');
+  const btn = document.getElementById('audioToggle');
+  if (!audio || !btn) return;
 
-  <script type="module" src="scripts/hubEnhancements.js"></script>
-</body>
-</html>
+  const STORE_KEY = 'sv13_hub_bgm_muted';
+
+  // Restore mute preference
+  const wasMuted = localStorage.getItem(STORE_KEY) === '1';
+  audio.muted = wasMuted;
+  updateBtn();
+
+  // Try to autoplay if not muted (may be blocked by browser until user gesture)
+  if (!audio.muted) {
+    audio.play().catch(() => {
+      // Wait for first user gesture
+      const unlock = () => {
+        audio.play().catch(() => {/* ignore */});
+        window.removeEventListener('pointerdown', unlock);
+        window.removeEventListener('keydown', unlock);
+      };
+      window.addEventListener('pointerdown', unlock, { once: true });
+      window.addEventListener('keydown', unlock, { once: true });
+    });
+  }
+
+  // Toggle handler
+  btn.addEventListener('click', () => {
+    if (audio.paused || audio.muted) {
+      audio.muted = false;
+      audio.play().catch(() => {/* ignore */});
+    } else {
+      audio.muted = true;
+      // keep playing time position (muted) or pause if you prefer:
+      // audio.pause();
+    }
+    localStorage.setItem(STORE_KEY, audio.muted ? '1' : '0');
+    updateBtn();
+  });
+
+  function updateBtn() {
+    if (audio.muted || audio.paused) {
+      btn.textContent = '🔈 Play Music';
+      btn.setAttribute('aria-label', 'Play background music');
+    } else {
+      btn.textContent = '🔊 Mute Music';
+      btn.setAttribute('aria-label', 'Mute background music');
+    }
+  }
+})();
