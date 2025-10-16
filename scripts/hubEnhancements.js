@@ -77,6 +77,22 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   ['view-collection','build-deck','start-duel','leaderboard'].forEach(pass);
 
+  // Ensure the Start Duel link carries practice-friendly params (parity with /practice link)
+  (function ensurePracticeParams() {
+    const a = document.getElementById('start-duel');
+    if (!a) return;
+    try {
+      const u = new URL(a.href);
+      if (!u.searchParams.get('mode')) u.searchParams.set('mode', 'practice');
+      if (!u.searchParams.get('imgbase')) {
+        u.searchParams.set('imgbase', 'https://madv313.github.io/Card-Collection-UI/images/cards');
+      }
+      // mild cache-buster to avoid stale UI assets between launches
+      u.searchParams.set('ts', String(Date.now()));
+      a.href = u.toString();
+    } catch {/* ignore */}
+  })();
+
   // ----- Button tap animation
   document.querySelectorAll('.menu-button').forEach(btn => {
     btn.addEventListener('click', () => btn.classList.add('fade-out'));
