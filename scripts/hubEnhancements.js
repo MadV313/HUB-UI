@@ -6,7 +6,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const arsenalEl = document.getElementById('arsenalCount');
   const coinsEl   = document.getElementById('coinCount');
 
-  // ----- Stats (prefer backend when token+api present; fallback to collection)
+  /* ---------- Stats: prefer backend when token+api present ---------- */
   async function fetchAndRenderStats() {
     if (!token || !api) return;
 
@@ -29,9 +29,9 @@ document.addEventListener('DOMContentLoaded', () => {
           gotCoins = true;
         }
       }
-    } catch {/* ignore; try fallbacks below */ }
+    } catch {/* ignore; try fallback below */ }
 
-    // Fallback: compute unique collected from /collection
+    // Fallback: compute unique collected from /collection if needed
     if (!gotCards) {
       try {
         const r2 = await fetch(`${api}/me/${encodeURIComponent(token)}/collection`, { cache: 'no-store' });
@@ -47,18 +47,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
           if (arsenalEl) arsenalEl.textContent = `${collected} / 127`;
         }
-      } catch {/* ignore */}
+      } catch {/* ignore */ }
     }
   }
 
   fetchAndRenderStats();
-  // Re-try when the tab becomes active (e.g., after selling cards in another tab)
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden) fetchAndRenderStats();
   });
 
-  // ----- Pass token/api to outbound links
-  function pass(id) {
+  /* ---------- Pass token/api to outbound links ---------- */
+  function passBasic(id) {
     const a = document.getElementById(id);
     if (!a) return;
     try {
@@ -75,30 +74,43 @@ document.addEventListener('DOMContentLoaded', () => {
       if (parts.length) a.setAttribute('href', `${base}${sep}${parts.join('&')}`);
     }
   }
-  ['view-collection','build-deck','start-duel','leaderboard'].forEach(pass);
+  ['view-collection','build-deck','leaderboard'].forEach(passBasic);
 
-  // Ensure the Start Duel link carries practice-friendly params (parity with /practice link)
-  (function ensurePracticeParams() {
+  /* ---------- Special-case: Start a Duel (ensure practice init works) ---------- */
+  (function wireStartDuel() {
     const a = document.getElementById('start-duel');
     if (!a) return;
-    try {
-      const u = new URL(a.href);
-      if (!u.searchParams.get('mode')) u.searchParams.set('mode', 'practice');
-      if (!u.searchParams.get('imgbase')) {
-        u.searchParams.set('imgbase', 'https://madv313.github.io/Card-Collection-UI/images/cards');
-      }
-      // mild cache-buster to avoid stale UI assets between launches
-      u.searchParams.set('ts', String(Date.now()));
-      a.href = u.toString();
-    } catch {/* ignore */}
+
+    // If we don't have both pieces, disable the link to avoid the "API not available" dialog.
+    if (!token || !api) {
+      a.addEventListener('click', (e) => {
+        e.preventDefault();
+        alert('To start a practice duel from the Hub, your link must include both ?token= and ?api=. Open the Hub from a bot deep link or add them manually.');
+      });
+      a.title = 'Missing token/api in URL';
+      return;
+    }
+
+    const IMG_BASE = 'https://madv313.github.io/Card-Collection-UI/images/cards';
+    const u = new URL(a.href);
+
+    // Overwrite with a clean, known-good query for practice
+    u.search = '';
+    u.searchParams.set('mode', 'practice');
+    u.searchParams.set('token', token);
+    u.searchParams.set('api', api);
+    u.searchParams.set('imgbase', IMG_BASE);
+    u.searchParams.set('ts', String(Date.now()));
+
+    a.href = u.toString();
   })();
 
-  // ----- Button tap animation
+  /* ---------- Button tap animation ---------- */
   document.querySelectorAll('.menu-button').forEach(btn => {
     btn.addEventListener('click', () => btn.classList.add('fade-out'));
   });
 
-  // ----- Background music control (autoplay-safe)
+  /* ---------- Background music control (autoplay-safe) ---------- */
   setupHubMusic();
 
   function setupHubMusic() {
