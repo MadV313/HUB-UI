@@ -1,97 +1,101 @@
 document.addEventListener('DOMContentLoaded', () => {
-  // ---- Query params we’ll propagate to other UIs ----
-  const qs = new URLSearchParams(window.location.search);
-  const userId = qs.get('user');                    // existing param your hub uses
-  const token  = qs.get('token') || '';             // new: player token
-  const api    = (qs.get('api') || '').replace(/\/+$/, ''); // new: API base (trim trailing /)
+  const qs   = new URLSearchParams(location.search);
+  const token = qs.get('token') || '';
+  const api   = (qs.get('api') || '').replace(/\/+$/, '');
 
-  // Optional trade session params (preserved if present)
-  const mode          = (qs.get('mode') || '').toLowerCase();      // e.g. "trade"
-  const tradeSession  = qs.get('tradeSession') || qs.get('session') || '';
-  const role          = (qs.get('role') || '').toLowerCase();
-
-  // ---- Helpers ----
-  const propagateParams = (href) => {
-    if (!href) return href;
+  // ----- Stats (prefer backend when token+api present)
+  (async () => {
     try {
-      const u = new URL(href, window.location.href);
-      // Keep any existing params on the link, then merge ours
-      if (userId) u.searchParams.set('user', userId);
-      if (token)  u.searchParams.set('token', token);
-      if (api)    u.searchParams.set('api', api);
-      if (mode)   u.searchParams.set('mode', mode);
-      if (tradeSession) u.searchParams.set('tradeSession', tradeSession);
-      if (role)   u.searchParams.set('role', role);
-      return u.toString();
-    } catch {
-      // Relative without base or malformed; do a safe manual append
-      const hasQuery = href.includes('?');
-      const parts = [];
-      if (userId) parts.push(`user=${encodeURIComponent(userId)}`);
-      if (token)  parts.push(`token=${encodeURIComponent(token)}`);
-      if (api)    parts.push(`api=${encodeURIComponent(api)}`);
-      if (mode)   parts.push(`mode=${encodeURIComponent(mode)}`);
-      if (tradeSession) parts.push(`tradeSession=${encodeURIComponent(tradeSession)}`);
-      if (role)   parts.push(`role=${encodeURIComponent(role)}`);
-      if (!parts.length) return href;
-      return href + (hasQuery ? '&' : '?') + parts.join('&');
-    }
-  };
-
-  // ---- Stats population (API-first, fallback to local JSON as before) ----
-  const arsenalEl = document.getElementById('arsenalCount');
-  const coinsEl   = document.getElementById('coinCount');
-
-  const applyStats = (stats) => {
-    if (!stats) return;
-    if (arsenalEl && (stats.cards != null || stats.collected != null)) {
-      const cards = Number(stats.cards ?? stats.collected ?? 0);
-      arsenalEl.textContent = `${cards} / 127`;
-    }
-    if (coinsEl && stats.coins != null) {
-      coinsEl.textContent = String(stats.coins);
-    }
-  };
-
-  const loadStats = async () => {
-    // Try API/token first if available
-    if (token && api) {
-      try {
+      if (token && api) {
         const r = await fetch(`${api}/me/${encodeURIComponent(token)}/stats`, { cache: 'no-store' });
         if (r.ok) {
           const s = await r.json();
-          applyStats(s);
-          return; // success → stop
+          const arsenal = document.getElementById('arsenalCount');
+          const coins   = document.getElementById('coinCount');
+          if (arsenal && s.cards != null) arsenal.textContent = `${s.cards} / 127`;
+          if (coins   && s.coins != null) coins.textContent   = String(s.coins);
         }
-      } catch (_) { /* swallow and fall through to local */ }
-    }
+      }
+    } catch {}
+  })();
 
-    // Original local stats flow (unchanged)
-    const statsUrl = `data/player_stats.json`;
-    if (!userId) return;
+  // ----- Pass token/api to outbound links
+  function pass(id) {
+    const a = document.getElementById(id);
+    if (!a) return;
     try {
-      const res = await fetch(statsUrl);
-      const data = await res.json();
-      applyStats(data[userId]);
-    } catch (_) {
-      // ignore if local stats missing
+      const u = new URL(a.href);
+      if (token) u.searchParams.set('token', token);
+      if (api)   u.searchParams.set('api', api);
+      a.href = u.toString();
+    } catch {
+      let base = a.getAttribute('href') || '';
+      const parts = [];
+      if (token) parts.push(`token=${encodeURIComponent(token)}`);
+      if (api)   parts.push(`api=${encodeURIComponent(api)}`);
+      const sep = base.includes('?') ? '&' : '?';
+      if (parts.length) a.setAttribute('href', `${base}${sep}${parts.join('&')}`);
     }
-  };
+  }
+  ['view-collection','build-deck','start-duel','leaderboard'].forEach(pass);
 
-  loadStats();
-
-  // ---- Enhance menu links to carry token/api/user/trade params ----
-  // Any <a> with class "menu-button" (your existing selectors)
-  const links = document.querySelectorAll('a.menu-button');
-  links.forEach(a => {
-    a.href = propagateParams(a.getAttribute('href'));
+  // ----- Button tap animation
+  document.querySelectorAll('.menu-button').forEach(btn => {
+    btn.addEventListener('click', () => btn.classList.add('fade-out'));
   });
 
-  // If you also use buttons without anchors, keep your fade-out feedback
-  const buttons = document.querySelectorAll('.menu-button');
-  buttons.forEach(btn => {
+  // ----- Background music control (autoplay-safe)
+  setupHubMusic();
+
+  function setupHubMusic() {
+    const audio = document.getElementById('hub-bgm');
+    const btn   = document.getElementById('audioToggle');
+    if (!audio || !btn) return;
+
+    const STORE_KEY = 'sv13_hub_bgm.muted';
+
+    // Restore saved preference (true/false as string)
+    const stored = localStorage.getItem(STORE_KEY);
+    if (stored !== null) audio.muted = (stored === 'true');
+
+    updateBtn();
+
+    // Best-effort autoplay (works because element is muted)
+    audio.play().catch(() => {});
+
+    // On first user gesture: ensure playback; if user hasn't explicitly chosen mute, unmute.
+    const unlock = () => {
+      audio.play().catch(() => {});
+      if (localStorage.getItem(STORE_KEY) !== 'true') {
+        audio.muted = false;
+        updateBtn();
+      }
+      cleanupUnlock();
+    };
+    function cleanupUnlock() {
+      window.removeEventListener('pointerdown', unlock, opt);
+      window.removeEventListener('keydown', unlock);
+      document.removeEventListener('visibilitychange', vis);
+    }
+    const opt = { passive: true };
+    window.addEventListener('pointerdown', unlock, opt);
+    window.addEventListener('keydown', unlock);
+
+    // If the tab regains visibility, retry play (Safari quirks)
+    const vis = () => { if (!document.hidden) audio.play().catch(() => {}); };
+    document.addEventListener('visibilitychange', vis);
+
+    // Manual toggle
     btn.addEventListener('click', () => {
-      btn.classList.add('fade-out');
+      audio.muted = !audio.muted;
+      localStorage.setItem(STORE_KEY, String(audio.muted));
+      updateBtn();
+      audio.play().catch(() => {});
     });
-  });
+
+    function updateBtn() {
+      btn.textContent = audio.muted ? '🔇' : '🔊';
+      btn.setAttribute('aria-label', audio.muted ? 'Play background music' : 'Mute background music');
+    }
+  }
 });
