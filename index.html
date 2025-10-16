@@ -63,7 +63,14 @@
   </div>
 
   <!-- 🔊 Background music (surviving_chernarus.mp3) -->
-  <audio id="hub-bgm" src="audio/bg/surviving_chernarus.mp3" loop preload="auto"></audio>
+  <audio
+  id="hub-bgm"
+  src="audio/bg/surviving_chernarus.mp3"
+  autoplay
+  muted
+  playsinline
+  loop
+  preload="auto"></audio>
   <button id="audioToggle" class="audio-toggle" aria-label="Mute background music">🔇</button>
 
   <!-- Main enhancements: token/api propagation + BG music control -->
