@@ -44,6 +44,90 @@
         <a href="https://madv313.github.io/Duel-Bot/SV13_RuleBook.html" class="menu-button">Rulebook</a>
         <a href="https://madv313.github.io/Card-Collection-UI/" class="menu-button" id="view-collection">View Collection</a>
         <a href="https://madv313.github.io/Deck-Builder-UI/" class="menu-button" id="build-deck">Build/Edit Deck</a>
+        <!-- Updated: pre-sets practice parameters so Duel UI behaves like the /practice link -->
+        <a
+          href="https://madv313.github.io/Duel-UI/?mode=practice&imgbase=https%3A%2F%2Fmadv313.github.io%2FCard-Collection-UI%2Fimages%2Fcards"
+          class="menu-button"
+          id="start-duel"
+        >Start a Duel</a>
+        <a href="https://madv313.github.io/Leaderboard-UI/" class="menu-button" id="leaderboard">Leaderboard</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- 🧩 Stat Labels (Bottom Left) -->
+  <div class="stat-overlay">
+    <div class="stat-line">ARSENAL UNLOCKED:</div>
+    <div class="stat-line">BANKED COINS:</div>
+  </div>
+
+  <!-- 🔢 Stat Values (Bottom Right) -->
+  <div class="stat-values">
+    <div class="stat-line"><span id="arsenalCount">30 / 127</span></div>
+    <div class="stat-line"><span id="coinCount">13</span></div>
+  </div>
+
+  <!-- 🔊 Background music (surviving_chernarus.mp3) -->
+  <audio
+    id="hub-bgm"
+    src="audio/bg/surviving_chernarus.mp3"
+    autoplay
+    muted
+    playsinline
+    loop
+    preload="auto"></audio>
+  <button id="audioToggle" class="audio-toggle" aria-label="Mute background music">🔇</button>
+
+  <!-- Main enhancements: token/api propagation + BG music control -->
+  <script type="module" src="scripts/hubEnhancements.js"></script>
+</body>
+</html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>SV13 Duel Hub</title>
+  <link rel="stylesheet" href="styles/hub.css" />
+  <style>
+    /* tiny style just for the audio toggle */
+    .audio-toggle {
+      position: fixed;
+      left: 16px;
+      bottom: 16px;
+      z-index: 9999;
+      background: rgba(0,0,0,0.65);
+      color: #fff;
+      border: 1px solid #00ffff;
+      border-radius: 999px;
+      padding: 8px 12px;
+      font-size: 12px;
+      cursor: pointer;
+      user-select: none;
+      backdrop-filter: blur(2px);
+    }
+    .audio-toggle:hover { box-shadow: 0 0 10px #00ffff; }
+  </style>
+</head>
+<body>
+  <!-- ❄️ Snowfall Effect -->
+  <div class="snow-effect"></div>
+
+  <div id="background"></div>
+
+  <!-- 🔗 Discord Logo Button -->
+  <a class="discord-button" href="https://discord.com/channels/1166441420643639348" target="_blank" rel="noopener">
+    <img src="images/logos/discord_logo.PNG" alt="Discord" />
+  </a>
+
+  <div class="overlay">
+    <h1 id="hub-title">SV13<br>DUEL BOT</h1>
+    <p class="subtitle">WELCOME BACK, SURVIVOR.<br>PREPARE YOUR DECK. DOMINATE THE ZONE.</p>
+
+    <div class="button-wrapper">
+      <div class="button-grid">
+        <a href="https://madv313.github.io/Duel-Bot/SV13_RuleBook.html" class="menu-button">Rulebook</a>
+        <a href="https://madv313.github.io/Card-Collection-UI/" class="menu-button" id="view-collection">View Collection</a>
+        <a href="https://madv313.github.io/Deck-Builder-UI/" class="menu-button" id="build-deck">Build/Edit Deck</a>
         <a href="https://madv313.github.io/Duel-UI/" class="menu-button" id="start-duel">Start a Duel</a>
         <a href="https://madv313.github.io/Leaderboard-UI/" class="menu-button" id="leaderboard">Leaderboard</a>
       </div>
