@@ -1,80 +1,72 @@
-document.addEventListener('DOMContentLoaded', () => {
-  const statsUrl = `data/player_stats.json`;
-  const userId = new URLSearchParams(window.location.search).get('user');
-
-  if (!userId) return;
-
-  fetch(statsUrl)
-    .then(res => res.json())
-    .then(data => {
-      const stats = data[userId];
-      if (!stats) return;
-
-      const arsenal = document.getElementById('arsenalCount');
-      const coins = document.getElementById('coinCount');
-
-      if (arsenal) arsenal.textContent = `${stats.cards} / 127`;
-      if (coins) coins.textContent = `${stats.coins}`;
-    });
-
-  const buttons = document.querySelectorAll('.menu-button');
-  buttons.forEach(btn => {
-    btn.addEventListener('click', () => {
-      btn.classList.add('fade-out');
-    });
-  });
-});
-
-// ───────────────────────────
-// 🎵 Background music control
-// ───────────────────────────
-(function setupHubMusic() {
-  const audio = document.getElementById('hub-bgm');
-  const btn = document.getElementById('audioToggle');
-  if (!audio || !btn) return;
-
-  const STORE_KEY = 'sv13_hub_bgm_muted';
-
-  // Restore mute preference
-  const wasMuted = localStorage.getItem(STORE_KEY) === '1';
-  audio.muted = wasMuted;
-  updateBtn();
-
-  // Try to autoplay if not muted (may be blocked by browser until user gesture)
-  if (!audio.muted) {
-    audio.play().catch(() => {
-      // Wait for first user gesture
-      const unlock = () => {
-        audio.play().catch(() => {/* ignore */});
-        window.removeEventListener('pointerdown', unlock);
-        window.removeEventListener('keydown', unlock);
-      };
-      window.addEventListener('pointerdown', unlock, { once: true });
-      window.addEventListener('keydown', unlock, { once: true });
-    });
-  }
-
-  // Toggle handler
-  btn.addEventListener('click', () => {
-    if (audio.paused || audio.muted) {
-      audio.muted = false;
-      audio.play().catch(() => {/* ignore */});
-    } else {
-      audio.muted = true;
-      // keep playing time position (muted) or pause if you prefer:
-      // audio.pause();
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>SV13 Duel Hub</title>
+  <link rel="stylesheet" href="styles/hub.css" />
+  <style>
+    /* tiny style just for the audio toggle */
+    .audio-toggle {
+      position: fixed;
+      left: 16px;
+      bottom: 16px;
+      z-index: 9999;
+      background: rgba(0,0,0,0.65);
+      color: #fff;
+      border: 1px solid #00ffff;
+      border-radius: 999px;
+      padding: 8px 12px;
+      font-size: 12px;
+      cursor: pointer;
+      user-select: none;
+      backdrop-filter: blur(2px);
     }
-    localStorage.setItem(STORE_KEY, audio.muted ? '1' : '0');
-    updateBtn();
-  });
+    .audio-toggle:hover { box-shadow: 0 0 10px #00ffff; }
+  </style>
+</head>
+<body>
+  <!-- ❄️ Snowfall Effect -->
+  <div class="snow-effect"></div>
 
-  function updateBtn() {
-    if (audio.muted || audio.paused) {
-      btn.textContent = '🔈 Play Music';
-      btn.setAttribute('aria-label', 'Play background music');
-    } else {
-      btn.textContent = '🔊 Mute Music';
-      btn.setAttribute('aria-label', 'Mute background music');
-    }
-  }
-})();
+  <div id="background"></div>
+
+  <!-- 🔗 Discord Logo Button -->
+  <a class="discord-button" href="https://discord.com/channels/1166441420643639348" target="_blank" rel="noopener">
+    <img src="images/logos/discord_logo.PNG" alt="Discord" />
+  </a>
+
+  <div class="overlay">
+    <h1 id="hub-title">SV13<br>DUEL BOT</h1>
+    <p class="subtitle">WELCOME BACK, SURVIVOR.<br>PREPARE YOUR DECK. DOMINATE THE ZONE.</p>
+
+    <div class="button-wrapper">
+      <div class="button-grid">
+        <a href="https://madv313.github.io/Duel-Bot/SV13_RuleBook.html" class="menu-button">Rulebook</a>
+        <a href="https://madv313.github.io/Card-Collection-UI/" class="menu-button" id="view-collection">View Collection</a>
+        <a href="https://madv313.github.io/Deck-Builder-UI/" class="menu-button" id="build-deck">Build/Edit Deck</a>
+        <a href="https://madv313.github.io/Duel-UI/" class="menu-button" id="start-duel">Start a Duel</a>
+        <a href="https://madv313.github.io/Leaderboard-UI/" class="menu-button" id="leaderboard">Leaderboard</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- 🧩 Stat Labels (Bottom Left) -->
+  <div class="stat-overlay">
+    <div class="stat-line">ARSENAL UNLOCKED:</div>
+    <div class="stat-line">BANKED COINS:</div>
+  </div>
+
+  <!-- 🔢 Stat Values (Bottom Right) -->
+  <div class="stat-values">
+    <div class="stat-line"><span id="arsenalCount">30 / 127</span></div>
+    <div class="stat-line"><span id="coinCount">13</span></div>
+  </div>
+
+  <!-- 🔊 Background music (surviving_chernarus.mp3) -->
+  <audio id="hub-bgm" src="audio/bg/surviving_chernarus.mp3" loop preload="auto"></audio>
+  <button id="audioToggle" class="audio-toggle" aria-label="Mute background music">🔇</button>
+
+  <!-- Main enhancements: token/api propagation + BG music control -->
+  <script type="module" src="scripts/hubEnhancements.js"></script>
+</body>
+</html>
