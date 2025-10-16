@@ -1,23 +1,61 @@
 document.addEventListener('DOMContentLoaded', () => {
-  const qs   = new URLSearchParams(location.search);
+  const qs    = new URLSearchParams(location.search);
   const token = qs.get('token') || '';
   const api   = (qs.get('api') || '').replace(/\/+$/, '');
 
-  // ----- Stats (prefer backend when token+api present)
-  (async () => {
+  const arsenalEl = document.getElementById('arsenalCount');
+  const coinsEl   = document.getElementById('coinCount');
+
+  // ----- Stats (prefer backend when token+api present; fallback to collection)
+  async function fetchAndRenderStats() {
+    if (!token || !api) return;
+
+    let gotCards = false;
+    let gotCoins = false;
+
     try {
-      if (token && api) {
-        const r = await fetch(`${api}/me/${encodeURIComponent(token)}/stats`, { cache: 'no-store' });
-        if (r.ok) {
-          const s = await r.json();
-          const arsenal = document.getElementById('arsenalCount');
-          const coins   = document.getElementById('coinCount');
-          if (arsenal && s.cards != null) arsenal.textContent = `${s.cards} / 127`;
-          if (coins   && s.coins != null) coins.textContent   = String(s.coins);
+      const r = await fetch(`${api}/me/${encodeURIComponent(token)}/stats`, { cache: 'no-store' });
+      if (r.ok) {
+        const s = await r.json();
+        const cards = Number(s.cards ?? s.collected);
+        const coins = Number(s.coins ?? s.balance);
+
+        if (Number.isFinite(cards) && arsenalEl) {
+          arsenalEl.textContent = `${cards} / 127`;
+          gotCards = true;
+        }
+        if (Number.isFinite(coins) && coinsEl) {
+          coinsEl.textContent = String(coins);
+          gotCoins = true;
         }
       }
-    } catch {}
-  })();
+    } catch {/* ignore; try fallbacks below */ }
+
+    // Fallback: compute unique collected from /collection
+    if (!gotCards) {
+      try {
+        const r2 = await fetch(`${api}/me/${encodeURIComponent(token)}/collection`, { cache: 'no-store' });
+        if (r2.ok) {
+          const list = await r2.json();
+          let collected = 0;
+
+          if (Array.isArray(list)) {
+            collected = list.reduce((n, c) => n + (Number(c.owned ?? c.quantity ?? 0) > 0 ? 1 : 0), 0);
+          } else if (list && typeof list === 'object') {
+            collected = Object.values(list).reduce((n, v) => n + (Number(v) > 0 ? 1 : 0), 0);
+          }
+
+          if (arsenalEl) arsenalEl.textContent = `${collected} / 127`;
+        }
+      } catch {/* ignore */}
+    }
+  }
+
+  fetchAndRenderStats();
+  // Re-try when the tab becomes active (e.g., after selling cards in another tab)
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) fetchAndRenderStats();
+  });
 
   // ----- Pass token/api to outbound links
   function pass(id) {
@@ -60,7 +98,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     updateBtn();
 
-    // Best-effort autoplay (works because element is muted)
+    // Best-effort autoplay (works because element can start muted)
     audio.play().catch(() => {});
 
     // On first user gesture: ensure playback; if user hasn't explicitly chosen mute, unmute.
