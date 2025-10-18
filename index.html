@@ -41,22 +41,25 @@
 
     <div class="button-wrapper">
       <div class="button-grid">
-        <a href="https://madv313.github.io/Duel-Bot/SV13_RuleBook.html" class="menu-button">Rulebook</a>
+        <!-- ✅ Updated to Rulebook-UI (+ cache-bust) and marked to pass token/api -->
+        <a href="https://madv313.github.io/Rulebook-UI/?v=rb-2025-10-16a" class="menu-button sv13-link" data-pass-params>
+          Rulebook
+        </a>
 
-        <a href="https://madv313.github.io/Card-Collection-UI/" class="menu-button" id="view-collection">
+        <a href="https://madv313.github.io/Card-Collection-UI/" class="menu-button sv13-link" id="view-collection" data-pass-params>
           View Collection
         </a>
 
-        <a href="https://madv313.github.io/Deck-Builder-UI/" class="menu-button" id="build-deck">
+        <a href="https://madv313.github.io/Deck-Builder-UI/" class="menu-button sv13-link" id="build-deck" data-pass-params>
           Build/Edit Deck
         </a>
 
         <!-- Default to practice mode; hubEnhancements.js appends token & api -->
-        <a href="https://madv313.github.io/Duel-UI/?mode=practice" class="menu-button" id="start-duel">
+        <a href="https://madv313.github.io/Duel-UI/?mode=practice" class="menu-button sv13-link" id="start-duel" data-pass-params>
           Start a Duel
         </a>
 
-        <a href="https://madv313.github.io/Leaderboard-UI/" class="menu-button" id="leaderboard">
+        <a href="https://madv313.github.io/Leaderboard-UI/" class="menu-button sv13-link" id="leaderboard" data-pass-params>
           Leaderboard
         </a>
       </div>
