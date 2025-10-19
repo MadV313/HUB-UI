@@ -8,10 +8,10 @@ document.addEventListener('DOMContentLoaded', () => {
   let api   = apiFromUrl   || '';
   try {
     if (!token) token = localStorage.getItem('sv13.token') || '';
-    if (!api)   api   = localStorage.getItem('sv13.api')   || '';
+    if (!api)   api   = (localStorage.getItem('sv13.api') || '').replace(/\/+$/, '');
     // persist new URL values for consistency across UIs
     if (tokenFromUrl) localStorage.setItem('sv13.token', tokenFromUrl);
-    if (apiFromUrl)   localStorage.setItem('sv13.api', apiFromUrl);
+    if (apiFromUrl)   localStorage.setItem('sv13.api', apiFromUrl.replace(/\/+$/, ''));
   } catch {/* ignore storage errors */}
 
   const arsenalEl = document.getElementById('arsenalCount');
@@ -130,6 +130,13 @@ document.addEventListener('DOMContentLoaded', () => {
     u.searchParams.set('token', token);
     u.searchParams.set('api', api);
     u.searchParams.set('imgbase', IMG_BASE);
+
+    // Pass hub back to Duel-UI so it can return properly after a match
+    // (use current page URL without query/hash)
+    const hubUrl = `${location.origin}${location.pathname}`.replace(/index\.html?$/i, '');
+    u.searchParams.set('hub', hubUrl);
+
+    // Cache-buster to avoid stale session
     u.searchParams.set('ts', String(Date.now()));
 
     a.href = u.toString();
