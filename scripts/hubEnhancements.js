@@ -1,7 +1,18 @@
 document.addEventListener('DOMContentLoaded', () => {
-  const qs    = new URLSearchParams(location.search);
-  const token = qs.get('token') || '';
-  const api   = (qs.get('api') || '').replace(/\/+$/, '');
+  // Prefer URL; fall back to localStorage (shared with other UIs)
+  const qs = new URLSearchParams(location.search);
+  const tokenFromUrl = (qs.get('token') || '').trim();
+  const apiFromUrl   = (qs.get('api') || '').replace(/\/+$/, '');
+
+  let token = tokenFromUrl || '';
+  let api   = apiFromUrl   || '';
+  try {
+    if (!token) token = localStorage.getItem('sv13.token') || '';
+    if (!api)   api   = localStorage.getItem('sv13.api')   || '';
+    // persist new URL values for consistency across UIs
+    if (tokenFromUrl) localStorage.setItem('sv13.token', tokenFromUrl);
+    if (apiFromUrl)   localStorage.setItem('sv13.api', apiFromUrl);
+  } catch {/* ignore storage errors */}
 
   const arsenalEl = document.getElementById('arsenalCount');
   const coinsEl   = document.getElementById('coinCount');
@@ -74,7 +85,26 @@ document.addEventListener('DOMContentLoaded', () => {
       if (parts.length) a.setAttribute('href', `${base}${sep}${parts.join('&')}`);
     }
   }
-  ['view-collection','build-deck','leaderboard'].forEach(passBasic);
+
+  // Include Rulebook in the explicit list
+  ['rulebook-link','view-collection','build-deck','leaderboard'].forEach(passBasic);
+
+  // Also blanket-apply to any sv13-link with data-pass-params
+  document.querySelectorAll('a.sv13-link[data-pass-params]').forEach(a => {
+    try {
+      const u = new URL(a.href);
+      if (token) u.searchParams.set('token', token);
+      if (api)   u.searchParams.set('api', api);
+      a.href = u.toString();
+    } catch {
+      let base = a.getAttribute('href') || '';
+      const parts = [];
+      if (token) parts.push(`token=${encodeURIComponent(token)}`);
+      if (api)   parts.push(`api=${encodeURIComponent(api)}`);
+      const sep = base.includes('?') ? '&' : '?';
+      if (parts.length) a.setAttribute('href', `${base}${sep}${parts.join('&')}`);
+    }
+  });
 
   /* ---------- Special-case: Start a Duel (ensure practice init works) ---------- */
   (function wireStartDuel() {
