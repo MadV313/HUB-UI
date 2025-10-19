@@ -42,7 +42,7 @@
     <div class="button-wrapper">
       <div class="button-grid">
         <!-- ✅ Updated to Rulebook-UI (+ cache-bust) and marked to pass token/api -->
-        <a href="https://madv313.github.io/Rulebook-UI/?v=rb-2025-10-16a" class="menu-button sv13-link" data-pass-params>
+        <a href="https://madv313.github.io/Rulebook-UI/?v=rb-2025-10-16a" class="menu-button sv13-link" data-pass-params id="rulebook-link">
           Rulebook
         </a>
 
@@ -88,6 +88,40 @@
     loop
     preload="auto"></audio>
   <button id="audioToggle" class="audio-toggle" aria-label="Mute background music">🔇</button>
+
+  <!-- 💡 Minimal, safe param forwarder for Rulebook -->
+  <script>
+  (function() {
+    try {
+      const qs = new URLSearchParams(location.search);
+      const tokenFromUrl = (qs.get('token') || '').trim();
+      const apiFromUrl   = (qs.get('api') || '').replace(/\/+$/, '');
+
+      // prefer URL; fall back to localStorage (shared keys with other UIs)
+      let token = tokenFromUrl || localStorage.getItem('sv13.token') || '';
+      let api   = apiFromUrl   || localStorage.getItem('sv13.api')   || '';
+
+      // persist back if URL had fresh values
+      if (tokenFromUrl) localStorage.setItem('sv13.token', tokenFromUrl);
+      if (apiFromUrl)   localStorage.setItem('sv13.api', apiFromUrl);
+
+      const link = document.getElementById('rulebook-link');
+      if (link) {
+        const u = new URL(link.href);
+        if (token) u.searchParams.set('token', token);
+        if (api)   u.searchParams.set('api', api);
+        link.href = u.toString();
+
+        // mark for downstream UIs that auto-chain params
+        link.classList.add('sv13-link');
+        link.setAttribute('data-pass-params', '');
+      }
+    } catch (e) {
+      /* no-op: never block the hub */
+      console.warn('[hub] rulebook param patch skipped:', e?.message || e);
+    }
+  })();
+  </script>
 
   <!-- Main enhancements: token/api propagation + stats + BG music control -->
   <script type="module" src="scripts/hubEnhancements.js"></script>
