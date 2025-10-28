@@ -1,40 +1,41 @@
 document.addEventListener('DOMContentLoaded', () => {
-  // Prefer URL (query or hash) ; fall back to localStorage (shared with other UIs)
-  const qs   = new URLSearchParams(location.search);
-  const hash = new URLSearchParams((location.hash || '').replace(/^#/, ''));
+  // Prefer URL; fall back to localStorage (shared with other UIs)
+  const qs = new URLSearchParams(location.search);
+  const tokenFromUrl = (qs.get('token') || '').trim();
+  const apiFromUrl   = (qs.get('api') || '').toString();
 
-  // Pull token/api from query → hash → storage
-  let tokenFromUrl = (qs.get('token') || hash.get('token') || '').trim();
-  let apiFromUrl   = (qs.get('api')   || hash.get('api')   || '').replace(/\/+$/, '');
-
-  // Strip accidental "Bearer " prefix for safety
-  if (tokenFromUrl && /^Bearer\s+/i.test(tokenFromUrl)) {
-    tokenFromUrl = tokenFromUrl.replace(/^Bearer\s+/i, '').trim();
+  // Strip accidental "Bearer " (seen in some deep links)
+  function stripBearer(s) {
+    return s && /^Bearer\s+/i.test(s) ? s.replace(/^Bearer\s+/i, '') : s;
   }
 
-  // Normalize API base to always end with /api
-  function normalizeApiBase(s) {
-    if (!s) return '';
-    const base = s.replace(/\/+$/, '');
-    return base.endsWith('/api') ? base : `${base}/api`;
+  // Normalize API to always end with "/api"
+  function normalizeApiBase(raw) {
+    if (!raw) return '/api';
+    const t = String(raw).replace(/\/+$/, '');
+    return t.endsWith('/api') ? t : `${t}/api`;
   }
 
-  // Load from storage if missing
-  let token = tokenFromUrl || '';
-  let api   = apiFromUrl   || '';
+  // Read token/api with fallbacks, then persist normalized values
+  let token = stripBearer(tokenFromUrl) || '';
+  let apiRaw = apiFromUrl || '';
   try {
-    if (!token) token = localStorage.getItem('sv13.token') || '';
-    if (!api)   api   = localStorage.getItem('sv13.api') || '';
+    if (!token) token = stripBearer(localStorage.getItem('sv13.token') || '');
+    if (!apiRaw) apiRaw = localStorage.getItem('sv13.api') || '';
   } catch { /* ignore storage errors */ }
 
-  // Final normalized API base (always /api)
-  const API_BASE = normalizeApiBase(api);
-
-  // Persist new URL values and normalized API for consistency across UIs
+  // Normalize API ONCE and persist the normalized form for all other UIs
+  const API_BASE = normalizeApiBase(apiRaw || '/api');
   try {
-    if (tokenFromUrl) localStorage.setItem('sv13.token', tokenFromUrl);
-    if (API_BASE)     localStorage.setItem('sv13.api', API_BASE);
+    if (tokenFromUrl) localStorage.setItem('sv13.token', stripBearer(tokenFromUrl));
+    // Always save the normalized API (ends with /api)
+    localStorage.setItem('sv13.api', API_BASE);
+    // Also expose globally so nested scripts can reuse
+    window.API_BASE = API_BASE;
   } catch { /* ignore */ }
+
+  // Expose token for nested scripts that expect it
+  window.PLAYER_TOKEN = token;
 
   const arsenalEl = document.getElementById('arsenalCount');
   const coinsEl   = document.getElementById('coinCount');
@@ -62,7 +63,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     } catch { /* ignore; try fallback below */ }
 
-    // Fallback: compute distinct collected from /collection if needed
+    // Fallback: compute unique collected from /collection if needed
     if (!gotCards) {
       try {
         const r2 = await fetch(`${API_BASE}/me/${encodeURIComponent(token)}/collection`, { cache: 'no-store' });
@@ -88,22 +89,27 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   /* ---------- Pass token/api to outbound links ---------- */
+  function addParamsToURL(href) {
+    try {
+      const u = new URL(href, location.origin);
+      if (token && !u.searchParams.get('token')) u.searchParams.set('token', token);
+      if (API_BASE && !u.searchParams.get('api')) u.searchParams.set('api', API_BASE);
+      return u.toString();
+    } catch {
+      // Fallback for non-standard hrefs
+      let base = href || '';
+      const parts = [];
+      if (token)    parts.push(`token=${encodeURIComponent(token)}`);
+      if (API_BASE) parts.push(`api=${encodeURIComponent(API_BASE)}`);
+      const sep = base.includes('?') ? '&' : '?';
+      return parts.length ? `${base}${sep}${parts.join('&')}` : base;
+    }
+  }
+
   function passBasic(id) {
     const a = document.getElementById(id);
     if (!a) return;
-    try {
-      const u = new URL(a.href, location.origin);
-      if (token)   u.searchParams.set('token', token);
-      if (API_BASE) u.searchParams.set('api', API_BASE);
-      a.href = u.toString();
-    } catch {
-      let base = a.getAttribute('href') || '';
-      const parts = [];
-      if (token)   parts.push(`token=${encodeURIComponent(token)}`);
-      if (API_BASE) parts.push(`api=${encodeURIComponent(API_BASE)}`);
-      const sep = base.includes('?') ? '&' : '?';
-      if (parts.length) a.setAttribute('href', `${base}${sep}${parts.join('&')}`);
-    }
+    a.href = addParamsToURL(a.href);
   }
 
   // Include Rulebook in the explicit list
@@ -111,19 +117,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Also blanket-apply to any sv13-link with data-pass-params
   document.querySelectorAll('a.sv13-link[data-pass-params]').forEach(a => {
-    try {
-      const u = new URL(a.href, location.origin);
-      if (token)   u.searchParams.set('token', token);
-      if (API_BASE) u.searchParams.set('api', API_BASE);
-      a.href = u.toString();
-    } catch {
-      let base = a.getAttribute('href') || '';
-      const parts = [];
-      if (token)   parts.push(`token=${encodeURIComponent(token)}`);
-      if (API_BASE) parts.push(`api=${encodeURIComponent(API_BASE)}`);
-      const sep = base.includes('?') ? '&' : '?';
-      if (parts.length) a.setAttribute('href', `${base}${sep}${parts.join('&')}`);
-    }
+    a.href = addParamsToURL(a.getAttribute('href') || a.href || '#');
   });
 
   /* ---------- Special-case: Start a Duel (ensure practice init works) ---------- */
@@ -141,6 +135,14 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
+    // Compute a safe hub return URL: same page, no query/hash, guaranteed trailing slash.
+    const hubUrlObj = new URL(location.href);
+    hubUrlObj.search = '';
+    hubUrlObj.hash = '';
+    // On GH Pages, ensure we end with a slash (avoids 404 on directory index)
+    const hubHref = hubUrlObj.toString().replace(/index\.html?$/i, '');
+    const hubClean = hubHref.endsWith('/') ? hubHref : `${hubHref}/`;
+
     const IMG_BASE = 'https://madv313.github.io/Card-Collection-UI/images/cards';
     const u = new URL(a.href, location.origin);
 
@@ -152,10 +154,7 @@ document.addEventListener('DOMContentLoaded', () => {
     u.searchParams.set('imgbase', IMG_BASE);
 
     // Pass hub back to Duel-UI so it can return properly after a match
-    // Use current page URL without query/hash, ensure trailing slash for GH Pages
-    let hubUrl = `${location.origin}${location.pathname}`.replace(/index\.html?$/i, '');
-    if (!hubUrl.endsWith('/')) hubUrl += '/';
-    u.searchParams.set('hub', hubUrl);
+    u.searchParams.set('hub', hubClean);
 
     // Cache-buster to avoid stale session
     u.searchParams.set('ts', String(Date.now()));
