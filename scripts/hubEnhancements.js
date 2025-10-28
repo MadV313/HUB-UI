@@ -1,31 +1,52 @@
 document.addEventListener('DOMContentLoaded', () => {
-  // Prefer URL; fall back to localStorage (shared with other UIs)
-  const qs = new URLSearchParams(location.search);
-  const tokenFromUrl = (qs.get('token') || '').trim();
-  const apiFromUrl   = (qs.get('api') || '').replace(/\/+$/, '');
+  // Prefer URL (query or hash) ; fall back to localStorage (shared with other UIs)
+  const qs   = new URLSearchParams(location.search);
+  const hash = new URLSearchParams((location.hash || '').replace(/^#/, ''));
 
+  // Pull token/api from query → hash → storage
+  let tokenFromUrl = (qs.get('token') || hash.get('token') || '').trim();
+  let apiFromUrl   = (qs.get('api')   || hash.get('api')   || '').replace(/\/+$/, '');
+
+  // Strip accidental "Bearer " prefix for safety
+  if (tokenFromUrl && /^Bearer\s+/i.test(tokenFromUrl)) {
+    tokenFromUrl = tokenFromUrl.replace(/^Bearer\s+/i, '').trim();
+  }
+
+  // Normalize API base to always end with /api
+  function normalizeApiBase(s) {
+    if (!s) return '';
+    const base = s.replace(/\/+$/, '');
+    return base.endsWith('/api') ? base : `${base}/api`;
+  }
+
+  // Load from storage if missing
   let token = tokenFromUrl || '';
   let api   = apiFromUrl   || '';
   try {
     if (!token) token = localStorage.getItem('sv13.token') || '';
-    if (!api)   api   = (localStorage.getItem('sv13.api') || '').replace(/\/+$/, '');
-    // persist new URL values for consistency across UIs
+    if (!api)   api   = localStorage.getItem('sv13.api') || '';
+  } catch { /* ignore storage errors */ }
+
+  // Final normalized API base (always /api)
+  const API_BASE = normalizeApiBase(api);
+
+  // Persist new URL values and normalized API for consistency across UIs
+  try {
     if (tokenFromUrl) localStorage.setItem('sv13.token', tokenFromUrl);
-    if (apiFromUrl)   localStorage.setItem('sv13.api', apiFromUrl.replace(/\/+$/, ''));
-  } catch {/* ignore storage errors */}
+    if (API_BASE)     localStorage.setItem('sv13.api', API_BASE);
+  } catch { /* ignore */ }
 
   const arsenalEl = document.getElementById('arsenalCount');
   const coinsEl   = document.getElementById('coinCount');
 
   /* ---------- Stats: prefer backend when token+api present ---------- */
   async function fetchAndRenderStats() {
-    if (!token || !api) return;
+    if (!token || !API_BASE) return;
 
     let gotCards = false;
-    let gotCoins = false;
 
     try {
-      const r = await fetch(`${api}/me/${encodeURIComponent(token)}/stats`, { cache: 'no-store' });
+      const r = await fetch(`${API_BASE}/me/${encodeURIComponent(token)}/stats`, { cache: 'no-store' });
       if (r.ok) {
         const s = await r.json();
         const cards = Number(s.cards ?? s.collected);
@@ -37,15 +58,14 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         if (Number.isFinite(coins) && coinsEl) {
           coinsEl.textContent = String(coins);
-          gotCoins = true;
         }
       }
-    } catch {/* ignore; try fallback below */ }
+    } catch { /* ignore; try fallback below */ }
 
-    // Fallback: compute unique collected from /collection if needed
+    // Fallback: compute distinct collected from /collection if needed
     if (!gotCards) {
       try {
-        const r2 = await fetch(`${api}/me/${encodeURIComponent(token)}/collection`, { cache: 'no-store' });
+        const r2 = await fetch(`${API_BASE}/me/${encodeURIComponent(token)}/collection`, { cache: 'no-store' });
         if (r2.ok) {
           const list = await r2.json();
           let collected = 0;
@@ -58,7 +78,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
           if (arsenalEl) arsenalEl.textContent = `${collected} / 127`;
         }
-      } catch {/* ignore */ }
+      } catch { /* ignore */ }
     }
   }
 
@@ -72,15 +92,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const a = document.getElementById(id);
     if (!a) return;
     try {
-      const u = new URL(a.href);
-      if (token) u.searchParams.set('token', token);
-      if (api)   u.searchParams.set('api', api);
+      const u = new URL(a.href, location.origin);
+      if (token)   u.searchParams.set('token', token);
+      if (API_BASE) u.searchParams.set('api', API_BASE);
       a.href = u.toString();
     } catch {
       let base = a.getAttribute('href') || '';
       const parts = [];
-      if (token) parts.push(`token=${encodeURIComponent(token)}`);
-      if (api)   parts.push(`api=${encodeURIComponent(api)}`);
+      if (token)   parts.push(`token=${encodeURIComponent(token)}`);
+      if (API_BASE) parts.push(`api=${encodeURIComponent(API_BASE)}`);
       const sep = base.includes('?') ? '&' : '?';
       if (parts.length) a.setAttribute('href', `${base}${sep}${parts.join('&')}`);
     }
@@ -92,15 +112,15 @@ document.addEventListener('DOMContentLoaded', () => {
   // Also blanket-apply to any sv13-link with data-pass-params
   document.querySelectorAll('a.sv13-link[data-pass-params]').forEach(a => {
     try {
-      const u = new URL(a.href);
-      if (token) u.searchParams.set('token', token);
-      if (api)   u.searchParams.set('api', api);
+      const u = new URL(a.href, location.origin);
+      if (token)   u.searchParams.set('token', token);
+      if (API_BASE) u.searchParams.set('api', API_BASE);
       a.href = u.toString();
     } catch {
       let base = a.getAttribute('href') || '';
       const parts = [];
-      if (token) parts.push(`token=${encodeURIComponent(token)}`);
-      if (api)   parts.push(`api=${encodeURIComponent(api)}`);
+      if (token)   parts.push(`token=${encodeURIComponent(token)}`);
+      if (API_BASE) parts.push(`api=${encodeURIComponent(API_BASE)}`);
       const sep = base.includes('?') ? '&' : '?';
       if (parts.length) a.setAttribute('href', `${base}${sep}${parts.join('&')}`);
     }
@@ -112,7 +132,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!a) return;
 
     // If we don't have both pieces, disable the link to avoid the "API not available" dialog.
-    if (!token || !api) {
+    if (!token || !API_BASE) {
       a.addEventListener('click', (e) => {
         e.preventDefault();
         alert('To start a practice duel from the Hub, your link must include both ?token= and ?api=. Open the Hub from a bot deep link or add them manually.');
@@ -122,18 +142,19 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const IMG_BASE = 'https://madv313.github.io/Card-Collection-UI/images/cards';
-    const u = new URL(a.href);
+    const u = new URL(a.href, location.origin);
 
     // Overwrite with a clean, known-good query for practice
     u.search = '';
     u.searchParams.set('mode', 'practice');
     u.searchParams.set('token', token);
-    u.searchParams.set('api', api);
+    u.searchParams.set('api', API_BASE);
     u.searchParams.set('imgbase', IMG_BASE);
 
     // Pass hub back to Duel-UI so it can return properly after a match
-    // (use current page URL without query/hash)
-    const hubUrl = `${location.origin}${location.pathname}`.replace(/index\.html?$/i, '');
+    // Use current page URL without query/hash, ensure trailing slash for GH Pages
+    let hubUrl = `${location.origin}${location.pathname}`.replace(/index\.html?$/i, '');
+    if (!hubUrl.endsWith('/')) hubUrl += '/';
     u.searchParams.set('hub', hubUrl);
 
     // Cache-buster to avoid stale session
