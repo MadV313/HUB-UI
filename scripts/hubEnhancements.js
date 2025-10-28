@@ -1,56 +1,47 @@
 document.addEventListener('DOMContentLoaded', () => {
-  // Prefer URL (query or hash); fall back to localStorage (shared across UIs)
-  const qs   = new URLSearchParams(location.search);
-  const hash = new URLSearchParams((location.hash || '').replace(/^#/, ''));
+  // Prefer URL; fall back to localStorage (shared with other UIs)
+  const qs = new URLSearchParams(location.search);
 
-  // Pull token/api from query → hash → storage
-  let tokenFromUrl = (qs.get('token') || hash.get('token') || '').trim();
+  const tokenFromUrl = (qs.get('token') || '').trim();
 
-  // ✅ DECODE api from URL/hash to fix %2F slashes
-  const apiRawFromUrl = (qs.get('api') || hash.get('api') || '');
-  let apiFromUrl = apiRawFromUrl ? decodeURIComponent(apiRawFromUrl) : '';
-  apiFromUrl = apiFromUrl.replace(/\/+$/, '');
+  // Duel backend base (routes like /duel/*, /spectate/*, etc.)
+  const apiFromUrl   = (qs.get('api') || '').replace(/\/+$/, '');
+  // NEW: Persistent-data backend base for /me/:token/* routes
+  const meFromUrl    = (qs.get('me')  || '').replace(/\/+$/, '');
 
-  // Strip accidental "Bearer " prefix for safety
-  if (tokenFromUrl && /^Bearer\s+/i.test(tokenFromUrl)) {
-    tokenFromUrl = tokenFromUrl.replace(/^Bearer\s+/i, '').trim();
-  }
-
-  // Normalize API base to always end with /api
-  function normalizeApiBase(s) {
-    if (!s) return '';
-    const base = s.replace(/\/+$/, '');
-    return base.endsWith('/api') ? base : `${base}/api`;
-  }
-
-  // Load from storage if missing
   let token = tokenFromUrl || '';
   let api   = apiFromUrl   || '';
+  let me    = meFromUrl    || '';
+
   try {
     if (!token) token = localStorage.getItem('sv13.token') || '';
-    if (!api)   api   = localStorage.getItem('sv13.api') || '';
-  } catch { /* ignore storage errors */ }
+    if (!api)   api   = (localStorage.getItem('sv13.api') || '').replace(/\/+$/, '');
+    if (!me)    me    = (localStorage.getItem('sv13.me')  || '').replace(/\/+$/, '');
 
-  // Final normalized API base (always /api)
-  const API_BASE = normalizeApiBase(api);
-
-  // Persist new URL values and normalized API for consistency across UIs
-  try {
+    // persist new URL values for consistency across UIs
     if (tokenFromUrl) localStorage.setItem('sv13.token', tokenFromUrl);
-    if (API_BASE)     localStorage.setItem('sv13.api', API_BASE);
-  } catch { /* ignore */ }
+    if (apiFromUrl)   localStorage.setItem('sv13.api',   apiFromUrl.replace(/\/+$/, ''));
+    if (meFromUrl)    localStorage.setItem('sv13.me',    meFromUrl.replace(/\/+$/, ''));
+  } catch {/* ignore storage errors */}
+
 
   const arsenalEl = document.getElementById('arsenalCount');
   const coinsEl   = document.getElementById('coinCount');
 
-  /* ---------- Stats: prefer backend when token+api present ---------- */
+  /* ---------- Stats: use ME base for /me/:token/* (fallback to api if ME missing) ---------- */
   async function fetchAndRenderStats() {
-    if (!token || !API_BASE) return;
+    if (!token) return;
+
+    // choose the base that should host /me routes
+    const base = (me || api).replace(/\/+$/, '');
+    if (!base) return;
 
     let gotCards = false;
+    let gotCoins = false;
 
+    // Try /stats first
     try {
-      const r = await fetch(`${API_BASE}/me/${encodeURIComponent(token)}/stats`, { cache: 'no-store' });
+      const r = await fetch(`${base}/me/${encodeURIComponent(token)}/stats`, { cache: 'no-store' });
       if (r.ok) {
         const s = await r.json();
         const cards = Number(s.cards ?? s.collected);
@@ -62,14 +53,17 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         if (Number.isFinite(coins) && coinsEl) {
           coinsEl.textContent = String(coins);
+          gotCoins = true;
         }
+      } else if (r.status === 404) {
+        console.warn('[Hub] /stats 404 at', base, '— check ME API base.');
       }
-    } catch { /* ignore; try fallback below */ }
+    } catch {/* ignore; try fallback below */ }
 
-    // Fallback: compute distinct collected from /collection if needed
+    // Fallback: compute unique collected from /collection if needed
     if (!gotCards) {
       try {
-        const r2 = await fetch(`${API_BASE}/me/${encodeURIComponent(token)}/collection`, { cache: 'no-store' });
+        const r2 = await fetch(`${base}/me/${encodeURIComponent(token)}/collection`, { cache: 'no-store' });
         if (r2.ok) {
           const list = await r2.json();
           let collected = 0;
@@ -81,8 +75,10 @@ document.addEventListener('DOMContentLoaded', () => {
           }
 
           if (arsenalEl) arsenalEl.textContent = `${collected} / 127`;
+        } else if (r2.status === 404) {
+          console.warn('[Hub] /collection 404 at', base, '— check ME API base.');
         }
-      } catch { /* ignore */ }
+      } catch {/* ignore */ }
     }
   }
 
@@ -91,23 +87,29 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!document.hidden) fetchAndRenderStats();
   });
 
-  /* ---------- Pass token/api to outbound links ---------- */
+  /* ---------- Pass token/api(+me) to outbound links ---------- */
+  function addParamsToUrl(href) {
+    try {
+      const u = new URL(href, location.href);
+      if (token) u.searchParams.set('token', token);
+      if (api)   u.searchParams.set('api',   api);
+      if (me)    u.searchParams.set('me',    me);
+      return u.toString();
+    } catch {
+      // safe fallback for relative or invalid URLs
+      const parts = [];
+      if (token) parts.push(`token=${encodeURIComponent(token)}`);
+      if (api)   parts.push(`api=${encodeURIComponent(api)}`);
+      if (me)    parts.push(`me=${encodeURIComponent(me)}`);
+      const sep = href.includes('?') ? '&' : '?';
+      return parts.length ? `${href}${sep}${parts.join('&')}` : href;
+    }
+  }
+
   function passBasic(id) {
     const a = document.getElementById(id);
     if (!a) return;
-    try {
-      const u = new URL(a.href, location.origin);
-      if (token)    u.searchParams.set('token', token);
-      if (API_BASE) u.searchParams.set('api', API_BASE);
-      a.href = u.toString();
-    } catch {
-      let base = a.getAttribute('href') || '';
-      const parts = [];
-      if (token)    parts.push(`token=${encodeURIComponent(token)}`);
-      if (API_BASE) parts.push(`api=${encodeURIComponent(API_BASE)}`);
-      const sep = base.includes('?') ? '&' : '?';
-      if (parts.length) a.setAttribute('href', `${base}${sep}${parts.join('&')}`);
-    }
+    a.href = addParamsToUrl(a.href);
   }
 
   // Include Rulebook in the explicit list
@@ -115,19 +117,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Also blanket-apply to any sv13-link with data-pass-params
   document.querySelectorAll('a.sv13-link[data-pass-params]').forEach(a => {
-    try {
-      const u = new URL(a.href, location.origin);
-      if (token)    u.searchParams.set('token', token);
-      if (API_BASE) u.searchParams.set('api', API_BASE);
-      a.href = u.toString();
-    } catch {
-      let base = a.getAttribute('href') || '';
-      const parts = [];
-      if (token)    parts.push(`token=${encodeURIComponent(token)}`);
-      if (API_BASE) parts.push(`api=${encodeURIComponent(API_BASE)}`);
-      const sep = base.includes('?') ? '&' : '?';
-      if (parts.length) a.setAttribute('href', `${base}${sep}${parts.join('&')}`);
-    }
+    a.href = addParamsToUrl(a.getAttribute('href') || '');
   });
 
   /* ---------- Special-case: Start a Duel (ensure practice init works) ---------- */
@@ -135,8 +125,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const a = document.getElementById('start-duel');
     if (!a) return;
 
-    // If we don't have both pieces, disable the link to avoid the "API not available" dialog.
-    if (!token || !API_BASE) {
+    // If we don't have duel API or token, keep UX friendly
+    if (!token || !api) {
       a.addEventListener('click', (e) => {
         e.preventDefault();
         alert('To start a practice duel from the Hub, your link must include both ?token= and ?api=. Open the Hub from a bot deep link or add them manually.');
@@ -146,19 +136,18 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const IMG_BASE = 'https://madv313.github.io/Card-Collection-UI/images/cards';
-    const u = new URL(a.href, location.origin);
+    const u = new URL(a.href, location.href);
 
     // Overwrite with a clean, known-good query for practice
     u.search = '';
     u.searchParams.set('mode', 'practice');
     u.searchParams.set('token', token);
-    u.searchParams.set('api', API_BASE);
+    u.searchParams.set('api', api);
+    if (me) u.searchParams.set('me', me); // propagate ME base forward too
     u.searchParams.set('imgbase', IMG_BASE);
 
     // Pass hub back to Duel-UI so it can return properly after a match
-    // Use current page URL without query/hash, ensure trailing slash for GH Pages
-    let hubUrl = `${location.origin}${location.pathname}`.replace(/index\.html?$/i, '');
-    if (!hubUrl.endsWith('/')) hubUrl += '/';
+    const hubUrl = `${location.origin}${location.pathname}`.replace(/index\.html?$/i, '');
     u.searchParams.set('hub', hubUrl);
 
     // Cache-buster to avoid stale session
@@ -182,16 +171,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const STORE_KEY = 'sv13_hub_bgm.muted';
 
-    // Restore saved preference (true/false as string)
     const stored = localStorage.getItem(STORE_KEY);
     if (stored !== null) audio.muted = (stored === 'true');
 
     updateBtn();
-
-    // Best-effort autoplay (works because element can start muted)
     audio.play().catch(() => {});
 
-    // On first user gesture: ensure playback; if user hasn't explicitly chosen mute, unmute.
     const unlock = () => {
       audio.play().catch(() => {});
       if (localStorage.getItem(STORE_KEY) !== 'true') {
@@ -209,11 +194,9 @@ document.addEventListener('DOMContentLoaded', () => {
     window.addEventListener('pointerdown', unlock, opt);
     window.addEventListener('keydown', unlock);
 
-    // If the tab regains visibility, retry play (Safari quirks)
     const vis = () => { if (!document.hidden) audio.play().catch(() => {}); };
     document.addEventListener('visibilitychange', vis);
 
-    // Manual toggle
     btn.addEventListener('click', () => {
       audio.muted = !audio.muted;
       localStorage.setItem(STORE_KEY, String(audio.muted));
