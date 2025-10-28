@@ -1,3 +1,4 @@
+<script>
 document.addEventListener('DOMContentLoaded', () => {
   // Prefer URL; fall back to localStorage (shared with other UIs)
   const qs = new URLSearchParams(location.search);
@@ -5,9 +6,21 @@ document.addEventListener('DOMContentLoaded', () => {
   const tokenFromUrl = (qs.get('token') || '').trim();
 
   // Duel backend base (routes like /duel/*, /spectate/*, etc.)
-  const apiFromUrl   = (qs.get('api') || '').replace(/\/+$/, '');
+  const apiFromUrl = (qs.get('api') || '').replace(/\/+$/, '');
   // NEW: Persistent-data backend base for /me/:token/* routes
-  const meFromUrl    = (qs.get('me')  || '').replace(/\/+$/, '');
+  const meFromUrl  = (qs.get('me')  || '').replace(/\/+$/, '');
+
+  // Helpers to normalize bases
+  const ensureApiHasSuffix = (v) => {
+    const b = (v || '').replace(/\/+$/, '');
+    if (!b) return '';
+    return b.endsWith('/api') ? b : `${b}/api`;
+  };
+  const deriveMeFromApi = (apiBase) => {
+    const b = (apiBase || '').replace(/\/+$/, '');
+    // If api ends with /api, strip it for ME calls (mounted at root)
+    return b.endsWith('/api') ? b.slice(0, -4) : b;
+  };
 
   let token = tokenFromUrl || '';
   let api   = apiFromUrl   || '';
@@ -17,31 +30,42 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!token) token = localStorage.getItem('sv13.token') || '';
     if (!api)   api   = (localStorage.getItem('sv13.api') || '').replace(/\/+$/, '');
     if (!me)    me    = (localStorage.getItem('sv13.me')  || '').replace(/\/+$/, '');
+  } catch { /* ignore storage errors */ }
 
-    // persist new URL values for consistency across UIs
+  // Normalize api → must include /api
+  if (api) api = ensureApiHasSuffix(api);
+
+  // If no explicit ME base, derive it from API (strip /api)
+  if (!me && api) me = deriveMeFromApi(api);
+
+  // Persist any new/normalized values for consistency across UIs
+  try {
     if (tokenFromUrl) localStorage.setItem('sv13.token', tokenFromUrl);
-    if (apiFromUrl)   localStorage.setItem('sv13.api',   apiFromUrl.replace(/\/+$/, ''));
+    if (apiFromUrl)   localStorage.setItem('sv13.api',   ensureApiHasSuffix(apiFromUrl));
     if (meFromUrl)    localStorage.setItem('sv13.me',    meFromUrl.replace(/\/+$/, ''));
-  } catch {/* ignore storage errors */}
-
+    // Also persist derived/normalized values when they weren't provided
+    if (!apiFromUrl && api) localStorage.setItem('sv13.api', api);
+    if (!meFromUrl  && me ) localStorage.setItem('sv13.me',  me);
+  } catch {}
 
   const arsenalEl = document.getElementById('arsenalCount');
   const coinsEl   = document.getElementById('coinCount');
 
-  /* ---------- Stats: use ME base for /me/:token/* (fallback to api if ME missing) ---------- */
+  /* ---------- Stats: use ME base for /me/:token/* (fallback to derived api-root if needed) ---------- */
   async function fetchAndRenderStats() {
     if (!token) return;
 
-    // choose the base that should host /me routes
-    const base = (me || api).replace(/\/+$/, '');
-    if (!base) return;
+    // Choose the base that hosts /me endpoints (mounted at ROOT, not /api)
+    let meBase = (me || '').replace(/\/+$/, '');
+    if (!meBase && api) meBase = deriveMeFromApi(api);
+    if (!meBase) return;
 
     let gotCards = false;
     let gotCoins = false;
 
     // Try /stats first
     try {
-      const r = await fetch(`${base}/me/${encodeURIComponent(token)}/stats`, { cache: 'no-store' });
+      const r = await fetch(`${meBase}/me/${encodeURIComponent(token)}/stats`, { cache: 'no-store' });
       if (r.ok) {
         const s = await r.json();
         const cards = Number(s.cards ?? s.collected);
@@ -56,14 +80,14 @@ document.addEventListener('DOMContentLoaded', () => {
           gotCoins = true;
         }
       } else if (r.status === 404) {
-        console.warn('[Hub] /stats 404 at', base, '— check ME API base.');
+        console.warn('[Hub] /stats 404 at', meBase, '— ME base should be the ROOT (no /api).');
       }
-    } catch {/* ignore; try fallback below */ }
+    } catch { /* ignore; try fallback below */ }
 
     // Fallback: compute unique collected from /collection if needed
     if (!gotCards) {
       try {
-        const r2 = await fetch(`${base}/me/${encodeURIComponent(token)}/collection`, { cache: 'no-store' });
+        const r2 = await fetch(`${meBase}/me/${encodeURIComponent(token)}/collection`, { cache: 'no-store' });
         if (r2.ok) {
           const list = await r2.json();
           let collected = 0;
@@ -76,9 +100,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
           if (arsenalEl) arsenalEl.textContent = `${collected} / 127`;
         } else if (r2.status === 404) {
-          console.warn('[Hub] /collection 404 at', base, '— check ME API base.');
+          console.warn('[Hub] /collection 404 at', meBase, '— ME base should be the ROOT (no /api).');
         }
-      } catch {/* ignore */ }
+      } catch { /* ignore */ }
     }
   }
 
@@ -96,7 +120,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (me)    u.searchParams.set('me',    me);
       return u.toString();
     } catch {
-      // safe fallback for relative or invalid URLs
+      // Safe fallback for relative or invalid URLs
       const parts = [];
       if (token) parts.push(`token=${encodeURIComponent(token)}`);
       if (api)   parts.push(`api=${encodeURIComponent(api)}`);
@@ -142,8 +166,8 @@ document.addEventListener('DOMContentLoaded', () => {
     u.search = '';
     u.searchParams.set('mode', 'practice');
     u.searchParams.set('token', token);
-    u.searchParams.set('api', api);
-    if (me) u.searchParams.set('me', me); // propagate ME base forward too
+    u.searchParams.set('api', api);          // API *with* /api suffix
+    if (me) u.searchParams.set('me', me);    // ME root (no /api)
     u.searchParams.set('imgbase', IMG_BASE);
 
     // Pass hub back to Duel-UI so it can return properly after a match
@@ -210,3 +234,4 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 });
+</script>
