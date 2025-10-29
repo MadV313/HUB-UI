@@ -1,108 +1,103 @@
 <script>
+// HUB-UI / scripts/hubEnhancements.js — carry token/api/me through the Hub
+
 document.addEventListener('DOMContentLoaded', () => {
-  // Prefer URL; fall back to localStorage (shared with other UIs)
+  /* ---------------- helpers ---------------- */
+  const trimBase = s => String(s || '').trim().replace(/\/+$/, '');
+  const getParam = (u, k) => {
+    try { return (new URL(u, location.href)).searchParams.get(k) || ''; } catch { return ''; }
+  };
+  const setIf = (key, val) => { try { if (val) localStorage.setItem(key, val); } catch{} };
+  const getLS = key => { try { return localStorage.getItem(key) || ''; } catch { return ''; } };
+
+  /* ---------------- read inputs ---------------- */
   const qs = new URLSearchParams(location.search);
 
-  const tokenFromUrl = (qs.get('token') || '').trim();
+  // from URL
+  const tokenQ = (qs.get('token') || '').trim();
+  const apiQ   = trimBase(qs.get('api') || '');
+  const meQ    = trimBase(qs.get('me')  || '');
 
-  // Duel backend base (routes like /duel/*, /spectate/*, etc.)
-  const apiFromUrl = (qs.get('api') || '').replace(/\/+$/, '');
-  // NEW: Persistent-data backend base for /me/:token/* routes
-  const meFromUrl  = (qs.get('me')  || '').replace(/\/+$/, '');
+  // from referrer (helps when Spectator returns without params)
+  const ref    = document.referrer || '';
+  const tokenR = (getParam(ref, 'token') || '').trim();
+  const apiR   = trimBase(getParam(ref, 'api') || '');
+  const meR    = trimBase(getParam(ref, 'me')  || '');
 
-  // Helpers to normalize bases
-  const ensureApiHasSuffix = (v) => {
-    const b = (v || '').replace(/\/+$/, '');
-    if (!b) return '';
-    return b.endsWith('/api') ? b : `${b}/api`;
-  };
-  const deriveMeFromApi = (apiBase) => {
-    const b = (apiBase || '').replace(/\/+$/, '');
-    // If api ends with /api, strip it for ME calls (mounted at root)
-    return b.endsWith('/api') ? b.slice(0, -4) : b;
-  };
+  // prefer URL → referrer → localStorage
+  let token = tokenQ || tokenR || getLS('sv13.token') || '';
+  let api   = trimBase(apiQ || apiR || getLS('sv13.api') || '');
+  let me    = trimBase(meQ  || meR  || getLS('sv13.me')  || '');
 
-  let token = tokenFromUrl || '';
-  let api   = apiFromUrl   || '';
-  let me    = meFromUrl    || '';
+  // persist newest values
+  setIf('sv13.token', token);
+  setIf('sv13.api',   api);
+  setIf('sv13.me',    me);
 
-  try {
-    if (!token) token = localStorage.getItem('sv13.token') || '';
-    if (!api)   api   = (localStorage.getItem('sv13.api') || '').replace(/\/+$/, '');
-    if (!me)    me    = (localStorage.getItem('sv13.me')  || '').replace(/\/+$/, '');
-  } catch { /* ignore storage errors */ }
+  // If Hub URL is missing any of these but we have them, inject them without reload
+  (function ensureParamsOnHubUrl() {
+    const needToken = !qs.get('token') && token;
+    const needApi   = !qs.get('api')   && api;
+    const needMe    = !qs.get('me')    && me;
 
-  // Normalize api → must include /api
-  if (api) api = ensureApiHasSuffix(api);
+    if (needToken || needApi || needMe) {
+      const u = new URL(location.href);
+      if (needToken) u.searchParams.set('token', token);
+      if (needApi)   u.searchParams.set('api',   api);
+      if (needMe)    u.searchParams.set('me',    me);
+      // Do not reload; just fix address bar so future navigation inherits params
+      history.replaceState(null, '', u);
+    }
+  })();
 
-  // If no explicit ME base, derive it from API (strip /api)
-  if (!me && api) me = deriveMeFromApi(api);
-
-  // Persist any new/normalized values for consistency across UIs
-  try {
-    if (tokenFromUrl) localStorage.setItem('sv13.token', tokenFromUrl);
-    if (apiFromUrl)   localStorage.setItem('sv13.api',   ensureApiHasSuffix(apiFromUrl));
-    if (meFromUrl)    localStorage.setItem('sv13.me',    meFromUrl.replace(/\/+$/, ''));
-    // Also persist derived/normalized values when they weren't provided
-    if (!apiFromUrl && api) localStorage.setItem('sv13.api', api);
-    if (!meFromUrl  && me ) localStorage.setItem('sv13.me',  me);
-  } catch {}
-
+  /* ---------------- stats widgets ---------------- */
   const arsenalEl = document.getElementById('arsenalCount');
   const coinsEl   = document.getElementById('coinCount');
 
-  /* ---------- Stats: use ME base for /me/:token/* (fallback to derived api-root if needed) ---------- */
   async function fetchAndRenderStats() {
     if (!token) return;
 
-    // Choose the base that hosts /me endpoints (mounted at ROOT, not /api)
-    let meBase = (me || '').replace(/\/+$/, '');
-    if (!meBase && api) meBase = deriveMeFromApi(api);
-    if (!meBase) return;
+    const base = trimBase(me || api); // /me/:token/* lives on ME if provided, else API
+    if (!base) return;
 
     let gotCards = false;
-    let gotCoins = false;
 
-    // Try /stats first
+    // Try /stats
     try {
-      const r = await fetch(`${meBase}/me/${encodeURIComponent(token)}/stats`, { cache: 'no-store' });
+      const r = await fetch(`${base}/me/${encodeURIComponent(token)}/stats`, { cache: 'no-store' });
       if (r.ok) {
         const s = await r.json();
         const cards = Number(s.cards ?? s.collected);
         const coins = Number(s.coins ?? s.balance);
-
         if (Number.isFinite(cards) && arsenalEl) {
           arsenalEl.textContent = `${cards} / 127`;
           gotCards = true;
         }
         if (Number.isFinite(coins) && coinsEl) {
           coinsEl.textContent = String(coins);
-          gotCoins = true;
         }
       } else if (r.status === 404) {
-        console.warn('[Hub] /stats 404 at', meBase, '— ME base should be the ROOT (no /api).');
+        console.warn('[Hub] /stats 404 at', base, '— verify your ME base.');
       }
-    } catch { /* ignore; try fallback below */ }
+    } catch {}
 
-    // Fallback: compute unique collected from /collection if needed
+    // Fallback /collection → unique count
     if (!gotCards) {
       try {
-        const r2 = await fetch(`${meBase}/me/${encodeURIComponent(token)}/collection`, { cache: 'no-store' });
+        const r2 = await fetch(`${base}/me/${encodeURIComponent(token)}/collection`, { cache: 'no-store' });
         if (r2.ok) {
           const list = await r2.json();
           let collected = 0;
-
           if (Array.isArray(list)) {
             collected = list.reduce((n, c) => n + (Number(c.owned ?? c.quantity ?? 0) > 0 ? 1 : 0), 0);
           } else if (list && typeof list === 'object') {
             collected = Object.values(list).reduce((n, v) => n + (Number(v) > 0 ? 1 : 0), 0);
           }
-
           if (arsenalEl) arsenalEl.textContent = `${collected} / 127`;
         } else if (r2.status === 404) {
-          console.warn('[Hub] /collection 404 at', meBase, '— ME base should be the ROOT (no /api).');
+          console.warn('[Hub] /collection 404 at', base, '— verify your ME base.');
         }
-      } catch { /* ignore */ }
+      } catch {}
     }
   }
 
@@ -111,8 +106,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!document.hidden) fetchAndRenderStats();
   });
 
-  /* ---------- Pass token/api(+me) to outbound links ---------- */
-  function addParamsToUrl(href) {
+  /* ---------------- link param propagation ---------------- */
+  const addParamsToUrl = (href) => {
     try {
       const u = new URL(href, location.href);
       if (token) u.searchParams.set('token', token);
@@ -120,105 +115,105 @@ document.addEventListener('DOMContentLoaded', () => {
       if (me)    u.searchParams.set('me',    me);
       return u.toString();
     } catch {
-      // Safe fallback for relative or invalid URLs
       const parts = [];
       if (token) parts.push(`token=${encodeURIComponent(token)}`);
       if (api)   parts.push(`api=${encodeURIComponent(api)}`);
       if (me)    parts.push(`me=${encodeURIComponent(me)}`);
-      const sep = href.includes('?') ? '&' : '?';
+      const sep = (href || '').includes('?') ? '&' : '?';
       return parts.length ? `${href}${sep}${parts.join('&')}` : href;
     }
-  }
+  };
 
-  function passBasic(id) {
+  const passBasic = (id) => {
     const a = document.getElementById(id);
     if (!a) return;
-    a.href = addParamsToUrl(a.href);
-  }
+    a.href = addParamsToUrl(a.getAttribute('href') || a.href || '#');
+  };
 
-  // Include Rulebook in the explicit list
+  // Explicit anchors
   ['rulebook-link','view-collection','build-deck','leaderboard'].forEach(passBasic);
 
-  // Also blanket-apply to any sv13-link with data-pass-params
+  // Blanket pass-through
   document.querySelectorAll('a.sv13-link[data-pass-params]').forEach(a => {
-    a.href = addParamsToUrl(a.getAttribute('href') || '');
+    a.href = addParamsToUrl(a.getAttribute('href') || a.href || '#');
   });
 
-  /* ---------- Special-case: Start a Duel (ensure practice init works) ---------- */
+  /* ---------------- Start a Duel wiring ---------------- */
   (function wireStartDuel() {
     const a = document.getElementById('start-duel');
     if (!a) return;
 
-    // If we don't have duel API or token, keep UX friendly
     if (!token || !api) {
       a.addEventListener('click', (e) => {
         e.preventDefault();
         alert('To start a practice duel from the Hub, your link must include both ?token= and ?api=. Open the Hub from a bot deep link or add them manually.');
-      });
+      }, { passive: false });
       a.title = 'Missing token/api in URL';
       return;
     }
 
     const IMG_BASE = 'https://madv313.github.io/Card-Collection-UI/images/cards';
-    const u = new URL(a.href, location.href);
+    const u = new URL(a.getAttribute('href') || a.href || location.href, location.href);
 
-    // Overwrite with a clean, known-good query for practice
+    // Clean query and set expected params
     u.search = '';
-    u.searchParams.set('mode', 'practice');
+    u.searchParams.set('mode',  'practice');
     u.searchParams.set('token', token);
-    u.searchParams.set('api', api);          // API *with* /api suffix
-    if (me) u.searchParams.set('me', me);    // ME root (no /api)
+    u.searchParams.set('api',   api);
+    if (me) u.searchParams.set('me', me);
     u.searchParams.set('imgbase', IMG_BASE);
 
-    // Pass hub back to Duel-UI so it can return properly after a match
-    const hubUrl = `${location.origin}${location.pathname}`.replace(/index\.html?$/i, '');
-    u.searchParams.set('hub', hubUrl);
+    // Return-to-hub: keep same page path but ensure it includes params
+    const hub = new URL(location.href);
+    if (token) hub.searchParams.set('token', token);
+    if (api)   hub.searchParams.set('api',   api);
+    if (me)    hub.searchParams.set('me',    me);
+    u.searchParams.set('hub', hub.toString());
 
-    // Cache-buster to avoid stale session
+    // cache-buster
     u.searchParams.set('ts', String(Date.now()));
-
     a.href = u.toString();
   })();
 
-  /* ---------- Button tap animation ---------- */
+  /* ---------------- Button tap FX ---------------- */
   document.querySelectorAll('.menu-button').forEach(btn => {
     btn.addEventListener('click', () => btn.classList.add('fade-out'));
   });
 
-  /* ---------- Background music control (autoplay-safe) ---------- */
-  setupHubMusic();
-
-  function setupHubMusic() {
+  /* ---------------- BGM controls ---------------- */
+  (function setupHubMusic() {
     const audio = document.getElementById('hub-bgm');
     const btn   = document.getElementById('audioToggle');
     if (!audio || !btn) return;
 
     const STORE_KEY = 'sv13_hub_bgm.muted';
-
     const stored = localStorage.getItem(STORE_KEY);
     if (stored !== null) audio.muted = (stored === 'true');
 
-    updateBtn();
-    audio.play().catch(() => {});
+    const updateBtn = () => {
+      btn.textContent = audio.muted ? '🔇' : '🔊';
+      btn.setAttribute('aria-label', audio.muted ? 'Play background music' : 'Mute background music');
+    };
 
+    // best-effort autoplay while muted
+    audio.play().catch(() => {});
+    updateBtn();
+
+    const opt = { passive: true };
+    const vis = () => { if (!document.hidden) audio.play().catch(() => {}); };
     const unlock = () => {
       audio.play().catch(() => {});
       if (localStorage.getItem(STORE_KEY) !== 'true') {
         audio.muted = false;
         updateBtn();
       }
-      cleanupUnlock();
-    };
-    function cleanupUnlock() {
       window.removeEventListener('pointerdown', unlock, opt);
       window.removeEventListener('keydown', unlock);
       document.removeEventListener('visibilitychange', vis);
-    }
-    const opt = { passive: true };
-    window.addEventListener('pointerdown', unlock, opt);
-    window.addEventListener('keydown', unlock);
+    };
 
-    const vis = () => { if (!document.hidden) audio.play().catch(() => {}); };
+    window.addEventListener('pointerdown', unlock, opt);
+    window.addEventListener('keydown',   unlock, opt);
     document.addEventListener('visibilitychange', vis);
 
     btn.addEventListener('click', () => {
@@ -227,11 +222,6 @@ document.addEventListener('DOMContentLoaded', () => {
       updateBtn();
       audio.play().catch(() => {});
     });
-
-    function updateBtn() {
-      btn.textContent = audio.muted ? '🔇' : '🔊';
-      btn.setAttribute('aria-label', audio.muted ? 'Play background music' : 'Mute background music');
-    }
-  }
+  })();
 });
 </script>
