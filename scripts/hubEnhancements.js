@@ -1,17 +1,34 @@
 // HUB-UI/scripts/hubEnhancements.js
-// Reads token/api(/me) from URL → persists to localStorage → renders stats →
-// rewrites links (Rulebook, View, Build, Leaderboard, Start a Duel) to include params.
+// Reads token/api(/me) from URL (supports ?query AND #hash) → persists to localStorage →
+// renders stats → rewrites links (Rulebook, View, Build, Leaderboard, Start a Duel) to include params.
 
 document.addEventListener('DOMContentLoaded', () => {
-  // --- Param intake (URL first, then localStorage) ---
-  const qs = new URLSearchParams(location.search);
+  // --- Helpers ---
+  const stripTrailingSlashes = (s) => (s || '').replace(/\/+$/, '');
+  const stripApiSuffix = (s) => stripTrailingSlashes(s || '').replace(/\/api$/i, '');
 
-  const tokenFromUrl = (qs.get('token') || '').trim();
+  // Parse both search (?a=b) and hash (#a=b) into a merged map (search wins on conflicts)
+  function readUrlParams() {
+    const search = new URLSearchParams(location.search);
+    const hashRaw = (location.hash || '').replace(/^#/, '');
+    const hash = new URLSearchParams(hashRaw);
 
-  // Duel backend base (routes like /duel/*)
-  const apiFromUrl = (qs.get('api') || '').replace(/\/+$/, '');
-  // Persistent-data backend base for /me/:token/*
-  const meFromUrl  = (qs.get('me')  || '').replace(/\/+$/, '');
+    const get = (k) => {
+      const v = (search.get(k) ?? '').trim();
+      if (v) return v;
+      const hv = (hash.get(k) ?? '').trim();
+      return hv;
+    };
+
+    return {
+      token: get('token') || '',
+      api:   (get('api') || '').replace(/\/+$/, ''),
+      me:    (get('me')  || '').replace(/\/+$/, '')
+    };
+  }
+
+  // --- Param intake (URL first [search+hash], then localStorage) ---
+  const { token: tokenFromUrl, api: apiFromUrl, me: meFromUrl } = readUrlParams();
 
   let token = tokenFromUrl || '';
   let api   = apiFromUrl   || '';
@@ -19,21 +36,28 @@ document.addEventListener('DOMContentLoaded', () => {
 
   try {
     if (!token) token = localStorage.getItem('sv13.token') || '';
-    if (!api)   api   = (localStorage.getItem('sv13.api') || '').replace(/\/+$/, '');
-    if (!me)    me    = (localStorage.getItem('sv13.me')  || '').replace(/\/+$/, '');
+    if (!api)   api   = stripTrailingSlashes(localStorage.getItem('sv13.api') || '');
+    if (!me)    me    = stripTrailingSlashes(localStorage.getItem('sv13.me')  || '');
 
     // Persist fresh URL values for other UIs (Spectator → Hub round-trip)
     if (tokenFromUrl) localStorage.setItem('sv13.token', tokenFromUrl);
-    if (apiFromUrl)   localStorage.setItem('sv13.api',   apiFromUrl.replace(/\/+$/, ''));
-    if (meFromUrl)    localStorage.setItem('sv13.me',    meFromUrl.replace(/\/+$/, ''));
+    if (apiFromUrl)   localStorage.setItem('sv13.api',   stripTrailingSlashes(apiFromUrl));
+    if (meFromUrl)    localStorage.setItem('sv13.me',    stripTrailingSlashes(meFromUrl));
   } catch { /* storage disabled */ }
 
-  // If ME base isn’t provided, fall back to API base.
-  const ME_BASE  = (me || api || '').replace(/\/+$/, '');
-  const API_BASE = (api || '').replace(/\/+$/, '');
+  // If ME base isn’t provided, derive it from API by stripping a trailing /api
+  const API_BASE = stripTrailingSlashes(api);
+  const ME_BASE  = stripTrailingSlashes(me || stripApiSuffix(api));
 
   // Quick debug to confirm params reached the Hub (remove later if noisy)
-  console.log('[Hub] params:', { token: token ? '(set)' : '', API_BASE, ME_BASE });
+  try {
+    console.log('[Hub] params:', {
+      token: token ? '(set)' : '',
+      API_BASE,
+      ME_BASE,
+      from: { search: location.search, hash: location.hash }
+    });
+  } catch {}
 
   const arsenalEl = document.getElementById('arsenalCount');
   const coinsEl   = document.getElementById('coinCount');
@@ -41,11 +65,10 @@ document.addEventListener('DOMContentLoaded', () => {
   // ---------- Stats: prefer ME_BASE (/me/:token/*), fallback to API_BASE ----------
   async function fetchAndRenderStats() {
     if (!token) return;
-    const base = (ME_BASE || API_BASE).replace(/\/+$/, '');
+    const base = stripTrailingSlashes(ME_BASE || API_BASE);
     if (!base) return;
 
     let gotCards = false;
-    let gotCoins = false;
 
     // Try /stats first
     try {
@@ -61,7 +84,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         if (Number.isFinite(coins) && coinsEl) {
           coinsEl.textContent = String(coins);
-          gotCoins = true;
         }
       } else if (r.status === 404) {
         console.warn('[Hub] /stats 404 at', base, '— verify backend has /me/:token/stats.');
@@ -99,15 +121,15 @@ document.addEventListener('DOMContentLoaded', () => {
   function addParamsToUrl(href) {
     try {
       const u = new URL(href, location.href);
-      if (token) u.searchParams.set('token', token);
-      if (API_BASE) u.searchParams.set('api', API_BASE);
-      if (ME_BASE)  u.searchParams.set('me',  ME_BASE);
+      if (token)   u.searchParams.set('token', token);
+      if (API_BASE)u.searchParams.set('api',   API_BASE);
+      if (ME_BASE) u.searchParams.set('me',    ME_BASE);
       return u.toString();
     } catch {
       const parts = [];
-      if (token)   parts.push(`token=${encodeURIComponent(token)}`);
-      if (API_BASE)parts.push(`api=${encodeURIComponent(API_BASE)}`);
-      if (ME_BASE) parts.push(`me=${encodeURIComponent(ME_BASE)}`);
+      if (token)    parts.push(`token=${encodeURIComponent(token)}`);
+      if (API_BASE) parts.push(`api=${encodeURIComponent(API_BASE)}`);
+      if (ME_BASE)  parts.push(`me=${encodeURIComponent(ME_BASE)}`);
       const sep = (href || '').includes('?') ? '&' : '?';
       return parts.length ? `${href}${sep}${parts.join('&')}` : href;
     }
