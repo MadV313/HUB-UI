@@ -1,235 +1,364 @@
-// HUB-UI/scripts/hubEnhancements.js
-// Reads token/api(/me) from URL (supports ?query AND #hash) → persists to localStorage →
-// renders stats → rewrites links (Rulebook, View, Build, Leaderboard, Start a Duel) to include params.
+// SV13 TCG HUB — canonical player hub.
+// Browser-facing identity is token-only; legacy browser storage-base interpretation is removed.
 
-document.addEventListener('DOMContentLoaded', () => {
-  // --- Helpers ---
-  const stripTrailingSlashes = (s) => (s || '').replace(/\/+$/, '');
-  const stripApiSuffix = (s) => stripTrailingSlashes(s || '').replace(/\/api$/i, '');
+(() => {
+  'use strict';
 
-  // Parse both search (?a=b) and hash (#a=b) into a merged map (search wins on conflicts)
+  const CANONICAL_API = 'https://api.sv13tcg.com';
+  const URLS = Object.freeze({
+    hub: 'https://sv13tcg.com/',
+    rulebook: 'https://rules.sv13tcg.com/',
+    collection: 'https://collection.sv13tcg.com/',
+    deck: 'https://deck.sv13tcg.com/',
+    stats: 'https://stats.sv13tcg.com/',
+    duel: 'https://duel.sv13tcg.com/',
+    leaderboard: 'https://leaderboard.sv13tcg.com/'
+  });
+
+  const STORAGE = Object.freeze({ token: 'sv13.token', api: 'sv13.api' });
+
+  document.addEventListener('DOMContentLoaded', init);
+
+  function init() {
+    const params = readUrlParams();
+    const storedToken = storageGet(STORAGE.token);
+    const storedApi = storageGet(STORAGE.api);
+
+    const token = String(params.token || storedToken || '').trim();
+    const apiBase = resolveApiBase(params.api || storedApi || CANONICAL_API);
+
+    if (params.token) storageSet(STORAGE.token, token);
+    if (params.api && apiBase) storageSet(STORAGE.api, apiBase);
+    else if (!storedApi && apiBase) storageSet(STORAGE.api, apiBase);
+
+    const state = {
+      token,
+      apiBase: apiBase || CANONICAL_API,
+      playerName: '',
+      statsStatus: 'idle'
+    };
+
+    configureCanonicalLinks(state);
+    wirePlayerRequiredGuard(state);
+    wireClearPlayer();
+    wirePractice(state);
+    setupHubMusic();
+
+    if (!state.token) {
+      renderNoPlayer();
+    } else {
+      refreshPlayerStats(state);
+    }
+
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden && state.token) refreshPlayerStats(state);
+    });
+    window.addEventListener('focus', () => {
+      if (state.token) refreshPlayerStats(state);
+    });
+  }
+
   function readUrlParams() {
     const search = new URLSearchParams(location.search);
-    const hashRaw = (location.hash || '').replace(/^#/, '');
-    const hash = new URLSearchParams(hashRaw);
-
-    const get = (k) => {
-      const v = (search.get(k) ?? '').trim();
-      if (v) return v;
-      const hv = (hash.get(k) ?? '').trim();
-      return hv;
-    };
-
-    return {
-      token: get('token') || '',
-      api:   (get('api') || '').replace(/\/+$/, ''),
-      me:    (get('me')  || '').replace(/\/+$/, '')
-    };
+    const hash = new URLSearchParams(String(location.hash || '').replace(/^#/, ''));
+    const first = key => String(search.get(key) || hash.get(key) || '').trim();
+    return { token: first('token'), api: first('api') };
   }
 
-  // --- Param intake (URL first [search+hash], then localStorage) ---
-  const { token: tokenFromUrl, api: apiFromUrl, me: meFromUrl } = readUrlParams();
+  function resolveApiBase(raw) {
+    const candidate = String(raw || '').trim().replace(/\/+$/, '');
+    if (!candidate) return CANONICAL_API;
+    try {
+      const u = new URL(candidate);
+      const host = u.hostname.toLowerCase();
+      const isCanonical = u.origin === CANONICAL_API;
+      const isLocalDev = host === 'localhost' || host === '127.0.0.1';
+      // Canonical production API is always the root. Old /api overrides are migration-only.
+      if (isCanonical) return CANONICAL_API;
+      if (isLocalDev) return u.origin + u.pathname.replace(/\/+$/, '');
+    } catch (_) {}
+    console.warn('[hub] Ignoring untrusted api override:', candidate);
+    return CANONICAL_API;
+  }
 
-  let token = tokenFromUrl || '';
-  let api   = apiFromUrl   || '';
-  let me    = meFromUrl    || '';
+  function storageGet(key) {
+    try { return localStorage.getItem(key) || ''; } catch (_) { return ''; }
+  }
 
-  try {
-    if (!token) token = localStorage.getItem('sv13.token') || '';
-    if (!api)   api   = stripTrailingSlashes(localStorage.getItem('sv13.api') || '');
-    if (!me)    me    = stripTrailingSlashes(localStorage.getItem('sv13.me')  || '');
+  function storageSet(key, value) {
+    try { localStorage.setItem(key, String(value || '')); } catch (_) {}
+  }
 
-    // Persist fresh URL values for other UIs (Spectator → Hub round-trip)
-    if (tokenFromUrl) localStorage.setItem('sv13.token', tokenFromUrl);
-    if (apiFromUrl)   localStorage.setItem('sv13.api',   stripTrailingSlashes(apiFromUrl));
-    if (meFromUrl)    localStorage.setItem('sv13.me',    stripTrailingSlashes(meFromUrl));
-  } catch { /* storage disabled */ }
+  function storageRemove(key) {
+    try { localStorage.removeItem(key); } catch (_) {}
+  }
 
-  // If ME base isn’t provided, derive it from API by stripping a trailing /api
-  const API_BASE = stripTrailingSlashes(api);
-  const ME_BASE  = stripTrailingSlashes(me || stripApiSuffix(api));
+  function playerUrl(base, state, { includeToken = true, includeApi = true } = {}) {
+    const u = new URL(base);
+    if (includeToken && state.token) u.searchParams.set('token', state.token);
+    if (includeApi && state.apiBase) u.searchParams.set('api', state.apiBase);
+    return u.toString();
+  }
 
-  // Quick debug to confirm params reached the Hub (remove later if noisy)
-  try {
-    console.log('[Hub] params:', {
-      token: token ? '(set)' : '',
-      API_BASE,
-      ME_BASE,
-      from: { search: location.search, hash: location.hash }
+  function configureCanonicalLinks(state) {
+    const rulebook = document.getElementById('rulebook-link');
+    const collection = document.getElementById('view-collection');
+    const deck = document.getElementById('build-deck');
+    const stats = document.getElementById('player-stats');
+    const leaderboard = document.getElementById('leaderboard');
+
+    // Rulebook is intentionally public: never forward player identity or API state.
+    if (rulebook) rulebook.href = URLS.rulebook;
+    if (collection) collection.href = playerUrl(URLS.collection, state);
+    if (deck) deck.href = playerUrl(URLS.deck, state);
+    if (stats) stats.href = playerUrl(URLS.stats, state);
+    // Leaderboard is public; token is optional and used only for viewer personalization.
+    if (leaderboard) leaderboard.href = playerUrl(URLS.leaderboard, state, { includeToken: true, includeApi: true });
+  }
+
+  function wirePlayerRequiredGuard(state) {
+    document.addEventListener('click', event => {
+      const target = event.target.closest('[data-player-required]');
+      if (!target || state.token) return;
+      event.preventDefault();
+      showNotice('No player is selected. Open a fresh tokenized SV13 link from Discord to select your player.', 'warning');
     });
-  } catch {}
+  }
 
-  const arsenalEl = document.getElementById('arsenalCount');
-  const coinsEl   = document.getElementById('coinCount');
+  async function refreshPlayerStats(state) {
+    if (!state.token || state.statsStatus === 'loading') return;
+    state.statsStatus = 'loading';
+    setConnection('loading', 'Loading player…');
+    setText('playerIdentity', 'Playing as …');
+    setText('arsenalCount', 'Loading…');
+    setText('coinCount', '—');
 
-  // ---------- Stats: prefer ME_BASE (/me/:token/*), fallback to API_BASE ----------
-  async function fetchAndRenderStats() {
-    if (!token) return;
-    const base = stripTrailingSlashes(ME_BASE || API_BASE);
-    if (!base) return;
-
-    let gotCards = false;
-
-    // Try /stats first
     try {
-      const r = await fetch(`${base}/me/${encodeURIComponent(token)}/stats`, { cache: 'no-store' });
-      if (r.ok) {
-        const s = await r.json();
-        const cards = Number(s.cards ?? s.collected);
-        const coins = Number(s.coins ?? s.balance);
-
-        if (Number.isFinite(cards) && arsenalEl) {
-          arsenalEl.textContent = `${cards} / 127`;
-          gotCards = true;
-        }
-        if (Number.isFinite(coins) && coinsEl) {
-          coinsEl.textContent = String(coins);
-        }
-      } else if (r.status === 404) {
-        console.warn('[Hub] /stats 404 at', base, '— verify backend has /me/:token/stats.');
-      }
-    } catch { /* ignore; try /collection below */ }
-
-    // Fallback: compute unique collected from /collection if needed
-    if (!gotCards) {
-      try {
-        const r2 = await fetch(`${base}/me/${encodeURIComponent(token)}/collection`, { cache: 'no-store' });
-        if (r2.ok) {
-          const list = await r2.json();
-          let collected = 0;
-
-          if (Array.isArray(list)) {
-            collected = list.reduce((n, c) => n + (Number(c.owned ?? c.quantity ?? 0) > 0 ? 1 : 0), 0);
-          } else if (list && typeof list === 'object') {
-            collected = Object.values(list).reduce((n, v) => n + (Number(v) > 0 ? 1 : 0), 0);
-          }
-
-          if (arsenalEl) arsenalEl.textContent = `${collected} / 127`;
-        } else if (r2.status === 404) {
-          console.warn('[Hub] /collection 404 at', base, '— verify backend has /me/:token/collection.');
-        }
-      } catch { /* ignore */ }
-    }
-  }
-
-  fetchAndRenderStats();
-  document.addEventListener('visibilitychange', () => {
-    if (!document.hidden) fetchAndRenderStats();
-  });
-
-  // ---------- Link param propagation ----------
-  function addParamsToUrl(href) {
-    try {
-      const u = new URL(href, location.href);
-      if (token)   u.searchParams.set('token', token);
-      if (API_BASE)u.searchParams.set('api',   API_BASE);
-      if (ME_BASE) u.searchParams.set('me',    ME_BASE);
-      return u.toString();
-    } catch {
-      const parts = [];
-      if (token)    parts.push(`token=${encodeURIComponent(token)}`);
-      if (API_BASE) parts.push(`api=${encodeURIComponent(API_BASE)}`);
-      if (ME_BASE)  parts.push(`me=${encodeURIComponent(ME_BASE)}`);
-      const sep = (href || '').includes('?') ? '&' : '?';
-      return parts.length ? `${href}${sep}${parts.join('&')}` : href;
-    }
-  }
-
-  function passBasic(id) {
-    const a = document.getElementById(id);
-    if (!a) return;
-    a.href = addParamsToUrl(a.getAttribute('href') || a.href || '#');
-  }
-
-  // Explicit important links
-  ['rulebook-link', 'view-collection', 'build-deck', 'leaderboard'].forEach(passBasic);
-
-  // Blanket for any marked anchors
-  document.querySelectorAll('a.sv13-link[data-pass-params]').forEach(a => {
-    a.href = addParamsToUrl(a.getAttribute('href') || a.href || '#');
-  });
-
-  // ---------- Start a Duel (practice) ----------
-  (function wireStartDuel() {
-    const a = document.getElementById('start-duel');
-    if (!a) return;
-
-    if (!token || !API_BASE) {
-      a.addEventListener('click', (e) => {
-        e.preventDefault();
-        alert('To start a practice duel from the Hub, your link must include both ?token= and ?api=. Open the Hub from a bot deep link or add them manually.');
+      const response = await fetch(`${state.apiBase}/me/${encodeURIComponent(state.token)}/stats`, {
+        method: 'GET',
+        cache: 'no-store',
+        credentials: 'omit',
+        headers: { Accept: 'application/json' }
       });
-      a.title = 'Missing token/api in URL';
-      return;
+
+      if (response.status === 404 || response.status === 401) {
+        state.statsStatus = 'invalid';
+        setText('playerIdentity', 'Invalid player link');
+        setText('arsenalCount', 'Unavailable');
+        setText('coinCount', '—');
+        setConnection('error', 'Player token is invalid or no longer exists.');
+        showNotice('Use /linkdeck, /mycards, /mydeck, or /mystats in Discord to open a fresh player link.', 'error');
+        return;
+      }
+
+      if (!response.ok) throw new Error(`Stats request failed (${response.status})`);
+      const stats = await response.json();
+      const name = String(stats?.discordName || stats?.name || '').trim();
+      const cardsCollected = finiteNumber(stats?.cardsCollected);
+      const coins = finiteNumber(stats?.coins);
+
+      state.playerName = name;
+      state.statsStatus = 'ready';
+      setText('playerIdentity', `Playing as ${name || 'Linked Player'}`);
+      setText('arsenalCount', cardsCollected === null ? 'Unavailable' : `${cardsCollected} / 127`);
+      setText('coinCount', coins === null ? 'Unavailable' : String(coins));
+
+      const partial = cardsCollected === null || coins === null || !name;
+      setConnection(partial ? 'partial' : 'ready', partial ? 'Connected — some player data is unavailable.' : 'Connected to SV13 TCG API');
+      if (!partial) clearNotice();
+    } catch (error) {
+      state.statsStatus = 'error';
+      setText('playerIdentity', state.playerName ? `Playing as ${state.playerName}` : 'Player data unavailable');
+      setText('arsenalCount', 'Unavailable');
+      setText('coinCount', '—');
+      setConnection('error', 'SV13 TCG API is unavailable.');
+      showNotice('Could not refresh player data. Your stored player link was preserved; retry when the API is reachable.', 'error');
+      console.warn('[hub] stats refresh failed:', error?.message || error);
     }
+  }
 
-    const IMG_BASE = 'https://madv313.github.io/Card-Collection-UI/images/cards';
-    const u = new URL(a.getAttribute('href') || a.href || location.href, location.href);
+  function finiteNumber(value) {
+    const n = Number(value);
+    return Number.isFinite(n) ? n : null;
+  }
 
-    // Overwrite with a clean, known-good query for practice
-    u.search = '';
-    u.searchParams.set('mode',  'practice');
-    u.searchParams.set('token', token);
-    u.searchParams.set('api',   API_BASE);
-    if (ME_BASE) u.searchParams.set('me', ME_BASE);
-    u.searchParams.set('imgbase', IMG_BASE);
+  function renderNoPlayer() {
+    setText('playerIdentity', 'No player selected');
+    setText('arsenalCount', '—');
+    setText('coinCount', '—');
+    setConnection('idle', 'Public Hub mode — player tools need a tokenized Discord link.');
+    showNotice('Rulebook and Leaderboard are public. Open a tokenized SV13 link from Discord for Collection, Deck Builder, Player Stats, or Practice.', 'info');
+  }
 
-    // Return-to-hub target (this page, without index.html)
-    const hubUrl = `${location.origin}${location.pathname}`.replace(/index\.html?$/i, '');
-    u.searchParams.set('hub', hubUrl);
+  function wireClearPlayer() {
+    const button = document.getElementById('clearPlayer');
+    if (!button) return;
+    button.addEventListener('click', () => {
+      storageRemove(STORAGE.token);
+      // API is not player identity, but clearing it prevents a stale test override from following a shared-browser user.
+      storageRemove(STORAGE.api);
+      const clean = new URL(URLS.hub);
+      location.assign(clean.toString());
+    });
+  }
 
-    // Cache-buster
-    u.searchParams.set('ts', String(Date.now()));
+  function wirePractice(state) {
+    const openButton = document.getElementById('practice-duel');
+    const dialog = document.getElementById('practiceDialog');
+    const savedButton = document.getElementById('practiceSaved');
+    const randomButton = document.getElementById('practiceRandom');
+    const status = document.getElementById('practiceStatus');
 
-    a.href = u.toString();
-  })();
+    if (!openButton || !dialog || !savedButton || !randomButton || !status) return;
 
-  // ---------- Background music ----------
-  setupHubMusic();
+    openButton.addEventListener('click', async () => {
+      if (!state.token) {
+        showNotice('Practice requires a selected player. Open a fresh tokenized SV13 link from Discord first.', 'warning');
+        return;
+      }
+      status.textContent = 'Checking saved deck…';
+      status.dataset.state = 'loading';
+      savedButton.disabled = false;
+      randomButton.disabled = false;
+      if (typeof dialog.showModal === 'function') dialog.showModal();
+      else dialog.setAttribute('open', '');
+      await updateSavedDeckReadiness(state, savedButton, status);
+    });
+
+    savedButton.addEventListener('click', () => createPracticeSession(state, 'saved', { dialog, status, savedButton, randomButton }));
+    randomButton.addEventListener('click', () => createPracticeSession(state, 'random', { dialog, status, savedButton, randomButton }));
+  }
+
+  async function updateSavedDeckReadiness(state, savedButton, status) {
+    try {
+      const response = await fetch(`${state.apiBase}/me/${encodeURIComponent(state.token)}/deck`, {
+        cache: 'no-store',
+        credentials: 'omit',
+        headers: { Accept: 'application/json' }
+      });
+      if (!response.ok) {
+        status.textContent = 'Saved deck readiness will be validated by the server when selected.';
+        status.dataset.state = 'idle';
+        return;
+      }
+      const body = await response.json();
+      const cards = Array.isArray(body?.deck?.cards) ? body.deck.cards : [];
+      const total = cards.reduce((sum, card) => sum + Math.max(0, Number(card?.qty || 0)), 0);
+      const copiesValid = cards.every(card => Number(card?.qty || 0) >= 1 && Number(card?.qty || 0) <= 5);
+      const ready = total >= 20 && total <= 40 && copiesValid;
+      savedButton.disabled = !ready;
+      status.textContent = ready
+        ? `Saved deck detected (${total} cards). Choose a deck to create a new session.`
+        : 'Your saved deck is not duel-ready (20–40 cards, maximum 5 copies each). Random Deck is available.';
+      status.dataset.state = ready ? 'ready' : 'warning';
+    } catch (_) {
+      status.textContent = 'Saved deck readiness could not be pre-checked; the server will validate it if selected.';
+      status.dataset.state = 'warning';
+    }
+  }
+
+  async function createPracticeSession(state, deckMode, ui) {
+    if (!state.token) return;
+    ui.savedButton.disabled = true;
+    ui.randomButton.disabled = true;
+    ui.status.textContent = `Creating a unique ${deckMode} practice session…`;
+    ui.status.dataset.state = 'loading';
+
+    try {
+      const response = await fetch(`${state.apiBase}/duel/practice`, {
+        method: 'POST',
+        cache: 'no-store',
+        credentials: 'omit',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ token: state.token, deckMode })
+      });
+
+      let body = null;
+      try { body = await response.json(); } catch (_) {}
+      if (!response.ok) throw new Error(body?.error || `Practice session request failed (${response.status})`);
+
+      const sessionId = String(body?.sessionId || '').trim();
+      if (!sessionId) throw new Error('Server created no practice session ID.');
+
+      const destination = new URL(URLS.duel);
+      destination.searchParams.set('session', sessionId);
+      destination.searchParams.set('token', state.token);
+      destination.searchParams.set('api', state.apiBase);
+      location.assign(destination.toString());
+    } catch (error) {
+      ui.status.textContent = error?.message || 'Could not create practice session.';
+      ui.status.dataset.state = 'error';
+      ui.savedButton.disabled = false;
+      ui.randomButton.disabled = false;
+      console.warn('[hub] practice creation failed:', error?.message || error);
+    }
+  }
+
+  function setConnection(kind, text) {
+    const el = document.getElementById('connectionStatus');
+    if (!el) return;
+    el.dataset.state = kind;
+    el.textContent = text;
+  }
+
+  function setText(id, value) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = value;
+  }
+
+  function showNotice(message, kind = 'info') {
+    const el = document.getElementById('hubNotice');
+    if (!el) return;
+    el.textContent = message;
+    el.dataset.state = kind;
+    el.hidden = false;
+  }
+
+  function clearNotice() {
+    const el = document.getElementById('hubNotice');
+    if (!el) return;
+    el.textContent = '';
+    el.hidden = true;
+  }
 
   function setupHubMusic() {
     const audio = document.getElementById('hub-bgm');
-    const btn   = document.getElementById('audioToggle');
-    if (!audio || !btn) return;
+    const button = document.getElementById('audioToggle');
+    if (!audio || !button) return;
 
-    const STORE_KEY = 'sv13_hub_bgm.muted';
-
-    const stored = localStorage.getItem(STORE_KEY);
-    if (stored !== null) audio.muted = (stored === 'true');
-
-    updateBtn();
+    const key = 'sv13_hub_bgm.muted';
+    const stored = storageGet(key);
+    if (stored) audio.muted = stored === 'true';
+    updateButton();
     audio.play().catch(() => {});
 
     const unlock = () => {
       audio.play().catch(() => {});
-      if (localStorage.getItem(STORE_KEY) !== 'true') {
-        audio.muted = false;
-        updateBtn();
-      }
-      cleanupUnlock();
+      if (storageGet(key) !== 'true') audio.muted = false;
+      updateButton();
+      window.removeEventListener('pointerdown', unlock);
+      window.removeEventListener('keydown', unlock);
     };
-    const opt = { passive: true };
-    window.addEventListener('pointerdown', unlock, opt);
+    window.addEventListener('pointerdown', unlock, { passive: true });
     window.addEventListener('keydown', unlock);
+
+    button.addEventListener('click', () => {
+      audio.muted = !audio.muted;
+      storageSet(key, String(audio.muted));
+      updateButton();
+      audio.play().catch(() => {});
+    });
+
     document.addEventListener('visibilitychange', () => {
       if (!document.hidden) audio.play().catch(() => {});
     });
 
-    btn.addEventListener('click', () => {
-      audio.muted = !audio.muted;
-      localStorage.setItem(STORE_KEY, String(audio.muted));
-      updateBtn();
-      audio.play().catch(() => {});
-    });
-
-    function cleanupUnlock() {
-      window.removeEventListener('pointerdown', unlock, opt);
-      window.removeEventListener('keydown', unlock);
-    }
-
-    function updateBtn() {
-      btn.textContent = audio.muted ? '🔇' : '🔊';
-      btn.setAttribute('aria-label', audio.muted ? 'Play background music' : 'Mute background music');
+    function updateButton() {
+      button.textContent = audio.muted ? '🔇' : '🔊';
+      button.setAttribute('aria-label', audio.muted ? 'Play background music' : 'Mute background music');
     }
   }
-});
+})();
