@@ -2,128 +2,76 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>SV13 Duel Hub</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#071014" />
+  <title>SV13 TCG Hub</title>
   <link rel="stylesheet" href="styles/hub.css" />
-  <style>
-    /* tiny style just for the audio toggle */
-    .audio-toggle {
-      position: fixed;
-      left: 16px;
-      bottom: 16px;
-      z-index: 9999;
-      background: rgba(0,0,0,0.65);
-      color: #fff;
-      border: 1px solid #00ffff;
-      border-radius: 999px;
-      padding: 8px 12px;
-      font-size: 12px;
-      cursor: pointer;
-      user-select: none;
-      backdrop-filter: blur(2px);
-    }
-    .audio-toggle:hover { box-shadow: 0 0 10px #00ffff; }
-  </style>
 </head>
 <body>
-  <!-- ❄️ Snowfall Effect -->
-  <div class="snow-effect"></div>
+  <div class="snow-effect" aria-hidden="true"></div>
 
-  <div id="background"></div>
-
-  <!-- 🔗 Discord Logo Button -->
-  <a class="discord-button" href="https://discord.com/channels/1166441420643639348" target="_blank" rel="noopener">
-    <img src="images/logos/discord_logo.PNG" alt="Discord" />
+  <a class="discord-button" href="https://discord.com/channels/1166441420643639348" target="_blank" rel="noopener noreferrer" aria-label="Open the SV13 Discord">
+    <img src="images/logos/discord_logo.png" alt="Discord" />
   </a>
 
-  <div class="overlay">
-    <h1 id="hub-title">SV13<br>DUEL BOT</h1>
-    <p class="subtitle">WELCOME BACK, SURVIVOR.<br>PREPARE YOUR DECK. DOMINATE THE ZONE.</p>
-
-    <div class="button-wrapper">
-      <div class="button-grid">
-        <!-- ✅ Updated to Rulebook-UI (+ cache-bust) and marked to pass token/api -->
-        <a href="https://madv313.github.io/Rulebook-UI/?v=rb-2025-10-16a" class="menu-button sv13-link" data-pass-params id="rulebook-link">
-          Rulebook
-        </a>
-
-        <a href="https://madv313.github.io/Card-Collection-UI/" class="menu-button sv13-link" id="view-collection" data-pass-params>
-          View Collection
-        </a>
-
-        <a href="https://madv313.github.io/Deck-Builder-UI/" class="menu-button sv13-link" id="build-deck" data-pass-params>
-          Build/Edit Deck
-        </a>
-
-        <!-- Default to practice mode; hubEnhancements.js appends token & api -->
-        <a href="https://madv313.github.io/Duel-UI/?mode=practice" class="menu-button sv13-link" id="start-duel" data-pass-params>
-          Start a Duel
-        </a>
-
-        <a href="https://madv313.github.io/Leaderboard-UI/" class="menu-button sv13-link" id="leaderboard" data-pass-params>
-          Leaderboard
-        </a>
+  <main class="hub-shell">
+    <section class="hub-panel" aria-labelledby="hub-title">
+      <div class="hub-heading">
+        <div class="eyebrow">SV13 TCG</div>
+        <h1 id="hub-title">Survivor Hub</h1>
+        <p class="subtitle">Manage your collection, deck, stats, and practice sessions from one canonical home.</p>
       </div>
+
+      <div class="identity-panel" id="identity-panel">
+        <div class="identity-copy">
+          <span class="identity-label">PLAYER</span>
+          <strong id="playerIdentity">Loading player…</strong>
+          <span id="connectionStatus" class="connection-status" data-state="loading">Connecting to SV13 TCG API…</span>
+        </div>
+        <button id="clearPlayer" class="identity-action" type="button">Clear / Switch Player</button>
+      </div>
+
+      <nav class="button-grid" aria-label="SV13 TCG menu">
+        <a href="https://rules.sv13tcg.com/" class="menu-button" id="rulebook-link">Rulebook</a>
+        <a href="https://collection.sv13tcg.com/" class="menu-button" id="view-collection" data-player-required>Collection</a>
+        <a href="https://deck.sv13tcg.com/" class="menu-button" id="build-deck" data-player-required>Deck Builder</a>
+        <a href="https://stats.sv13tcg.com/" class="menu-button" id="player-stats" data-player-required>Player Stats</a>
+        <button class="menu-button" id="practice-duel" type="button" data-player-required>Practice Duel</button>
+        <a href="https://leaderboard.sv13tcg.com/" class="menu-button" id="leaderboard">Leaderboard</a>
+      </nav>
+
+      <div id="hubNotice" class="hub-notice" role="status" aria-live="polite"></div>
+    </section>
+  </main>
+
+  <aside class="stat-bar" aria-label="Player overview">
+    <div class="stat-item">
+      <span class="stat-label">ARSENAL UNLOCKED</span>
+      <strong id="arsenalCount" class="stat-value">Loading…</strong>
     </div>
-  </div>
+    <div class="stat-item">
+      <span class="stat-label">BANKED COINS</span>
+      <strong id="coinCount" class="stat-value">—</strong>
+    </div>
+  </aside>
 
-  <!-- 🧩 Stat Labels (Bottom Left) -->
-  <div class="stat-overlay">
-    <div class="stat-line">ARSENAL UNLOCKED:</div>
-    <div class="stat-line">BANKED COINS:</div>
-  </div>
+  <dialog id="practiceDialog" class="practice-dialog" aria-labelledby="practiceTitle">
+    <form method="dialog" class="practice-card">
+      <div class="eyebrow">PRACTICE</div>
+      <h2 id="practiceTitle">Choose your deck</h2>
+      <p id="practiceHelp">A new unique practice session will be created before the Duel UI opens.</p>
+      <div id="practiceStatus" class="practice-status" role="status" aria-live="polite"></div>
+      <div class="practice-actions">
+        <button id="practiceSaved" class="choice-button" type="button">Use Saved Deck</button>
+        <button id="practiceRandom" class="choice-button" type="button">Use Random Deck</button>
+      </div>
+      <button id="practiceCancel" class="dialog-cancel" type="submit" value="cancel">Cancel</button>
+    </form>
+  </dialog>
 
-  <!-- 🔢 Stat Values (Bottom Right) -->
-  <div class="stat-values">
-    <div class="stat-line"><span id="arsenalCount">30 / 127</span></div>
-    <div class="stat-line"><span id="coinCount">13</span></div>
-  </div>
+  <audio id="hub-bgm" src="audio/bg/surviving_chernarus.mp3" autoplay muted playsinline loop preload="auto"></audio>
+  <button id="audioToggle" class="audio-toggle" type="button" aria-label="Play background music">🔇</button>
 
-  <!-- 🔊 Background music (surviving_chernarus.mp3) -->
-  <audio
-    id="hub-bgm"
-    src="audio/bg/surviving_chernarus.mp3"
-    autoplay
-    muted
-    playsinline
-    loop
-    preload="auto"></audio>
-  <button id="audioToggle" class="audio-toggle" aria-label="Mute background music">🔇</button>
-
-  <!-- 💡 Minimal, safe param forwarder for Rulebook -->
-  <script>
-  (function() {
-    try {
-      const qs = new URLSearchParams(location.search);
-      const tokenFromUrl = (qs.get('token') || '').trim();
-      const apiFromUrl   = (qs.get('api') || '').replace(/\/+$/, '');
-
-      // prefer URL; fall back to localStorage (shared keys with other UIs)
-      let token = tokenFromUrl || localStorage.getItem('sv13.token') || '';
-      let api   = apiFromUrl   || localStorage.getItem('sv13.api')   || '';
-
-      // persist back if URL had fresh values
-      if (tokenFromUrl) localStorage.setItem('sv13.token', tokenFromUrl);
-      if (apiFromUrl)   localStorage.setItem('sv13.api', apiFromUrl);
-
-      const link = document.getElementById('rulebook-link');
-      if (link) {
-        const u = new URL(link.href);
-        if (token) u.searchParams.set('token', token);
-        if (api)   u.searchParams.set('api', api);
-        link.href = u.toString();
-
-        // mark for downstream UIs that auto-chain params
-        link.classList.add('sv13-link');
-        link.setAttribute('data-pass-params', '');
-      }
-    } catch (e) {
-      /* no-op: never block the hub */
-      console.warn('[hub] rulebook param patch skipped:', e?.message || e);
-    }
-  })();
-  </script>
-
-  <!-- Main enhancements: token/api propagation + stats + BG music control -->
-  <script src="scripts/hubEnhancements.js?v=2"></script>
+  <script src="scripts/hubEnhancements.js?v=11"></script>
 </body>
 </html>
